@@ -528,16 +528,39 @@ function webSocketClock(server_url,config_dict)
         hour = (y-day_of_year)*24;
         // April to 24th October
         if (day_of_year>=90&&day_of_year<296) return true;
-        // January to 245h March
+        // January to 24th March
         if (day_of_year<82) return false;
         // November, Dezember
         if (day_of_year>=304) return false;
-        // TODO: find sunday
-        console.log(day_since_1968,year,day_of_year,hour)
-        return false;
+        // remaining days to the next sunday
+        weekday = 7-Math.floor(ts/86400000+4)%7; 
+        // day of the switch
+        if (weekday==7)
+          {
+            // Please note: hour is in UTC.
+            // Official rule: The switch takes place at 1:00 UTC,
+            //                independent of the timezone.
+            if (day_of_year<180)
+              {
+                // spring switch
+                return hour>=1;
+              }
+            else
+              {
+                // autumn switch
+                return hour<1;
+              }
+          }
+        // Is the next sunday after the end of the month? If so,
+        // we are after the switching day, otherwise before.
+        x = day_of_year+weekday;
+        // The next sunday is before April or after October.
+        if (x<90||x>=304) return false;
+        // The next sunday is after March or before November.
+        return true;
       }
       
-      
+    // write time, timezone, and date into the HTML elements
     function setClock(ts,zone,base_zone,offset,prefix,show)
       {
         if (zone==base_zone&&offset==0)
@@ -633,8 +656,8 @@ function webSocketClock(server_url,config_dict)
           }
       }
       
-    // set text value
-    // if the ID is not found, nothing is set and no error message
+    // write text value into an HTML element
+    // if the ID is not found, nothing is written and no error message
     // is created
     function set_value(id,text)
       {
@@ -642,7 +665,7 @@ function webSocketClock(server_url,config_dict)
         if (el) el.innerHTML = text;
       }
       
-    // set clock hand
+    // set clock hand direction
     function set_hand(id,angle)
       {
         //console.log(id,angle);
@@ -660,6 +683,7 @@ function webSocketClock(server_url,config_dict)
               {
                 //console.log("set_conn_state",ii,state,clock[ii]);
                 prefix = clock[ii].prefix;
+                // set background color
                 el = document.getElementById(prefix+'FaceBackground');
                 if (el)
                   {
@@ -672,19 +696,25 @@ function webSocketClock(server_url,config_dict)
                       fill = '#000';
                     el.setAttribute('fill',fill);
                   }
+                // set connection state text message
                 el = document.getElementById(prefix+'Notice');
                 if (el)
                   {
                     el2 = document.getElementById(prefix+'TabDeviation');
                     if (state=='connected')
                       {
+                        // no connection state message is displayed
                         el.style.display = 'none';
+                        // show deviation instead
                         if (el2) el2.style.display = 'block';
                       }
                     else 
                       {
+                        // there is some connetion error --> show it
                         el.style.display = 'block';
+                        // hide deviation to do so
                         if (el2) el2.style.display = 'none';
+                        // different errors
                         if (state=='disconnected')
                           {
                             el.innerHTML = el.getAttribute('data-not-connected');
@@ -764,7 +794,8 @@ function webSocketClock(server_url,config_dict)
               }
           }
       }
-      
+    
+    // Angle as degree, minute, second
     function set_degree(id,angle,sign_symbol)
       {
         el = document.getElementById(id);
@@ -785,6 +816,7 @@ function webSocketClock(server_url,config_dict)
           }
       }
 
+    // Julian Date
     function set_julian_date(id,value)
       {
         el = document.getElementById(id);
