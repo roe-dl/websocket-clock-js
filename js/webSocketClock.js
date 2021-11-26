@@ -185,8 +185,8 @@ function webSocketClock(server_url,config_dict)
       {
         if (clock[ii].show&3)
           {
-            prefix = clock[ii].prefix;
-            el = document.getElementById(prefix+'LinkDeviation');
+            let prefix = clock[ii].prefix;
+            var el = document.getElementById(prefix+'LinkDeviation');
             if (el)
               {
                 el.onclick = function()

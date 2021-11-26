@@ -10,14 +10,32 @@ the webpage. That clock can be quite wrong.
 That's why the Physikalisch-Technische Bundesanstalt in Braunschweig,
 Germany, designed the WebSocket subprotocol 'Time' and runs a 
 server for that protocol. This repository provides a script that
-implements that protocol and controls clocks for different time
-scales on a webpage. 
+implements the client side of that protocol and controls clocks 
+for different time scales on a webpage. 
+
+## What clocks can be displayed?
+
+The following clocks are available:
+
+* Central European Time (CET, CEST)
+* Universal Time Coordinated (UTC) that is world time
+* Local Mean Time (LMT) of your location
+* Greenwich Mean Sidereal Time (GMST)
+* Local Mean Sidereal Time (LMST) of your location
+* Julian Date (text only)
+* Modified Julian Date (text only)
+* Dublin Julian Date (text only)
+
+Additionally:
+
+* Longitude that belongs to the displayed LMT or LMST
+
 
 ## Prerequisites
 
 You need a clock face or some knowledge in HTML and embedded SVG.
 
-No jQuery required
+No jQuery required.
 
 ## Installation
 
@@ -42,7 +60,7 @@ together with an HTML file that includes the following:
         webSocketClock(server_url,conf); }
     </script>
     <svg ...>
-      <!-- clock face -->
+      <!-- your clock face here -->
     </svg>
 ```
 
@@ -61,16 +79,28 @@ The element "show" describes what to be shown:
 * 6 - analogous with date
 * 7 - both with date
 
-The following clocks are available:
+Examples for `conf`:
 
-* Central European Time (CET, CEST)
-* Universal Time Coordinated (UTC) that is world time
-* Local Mean Time (LMT) of your location
-* Greenwich Mean Sidereal Time (GMST)
-* Local Mean Sidereal Time (LMST) of your location
-* Julian Date
-* Modified Julian Date
-* Dublin Julian Date
+* Central European Time clock
+  ```
+  conf = {CET:{}};
+  ```
+  The IDs of the HTML elements start with 'ptb'.
+* UTC digital only
+  ```
+  conf = {UTC:{show:5}}
+  ```
+  The IDs of the HTML elements start with 'ptb'. To display the time, use:
+  ```
+  <span id="ptbTime">--:--:--</span><br/>
+  <span id="ptbDate">--.--.----</span>
+  ```
+* two clocks, one showing LMT, the other LMST 
+  ```
+  conf = {LMT:{prefix:'lmt'},LMST:{prefix:'lmst'}}
+  ```
+  The IDs of the HTML elements for the LMT clock start with 'lmt',
+  that of the LMST clock with 'lmst'. 
 
 ## Links
 
