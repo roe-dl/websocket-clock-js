@@ -22,9 +22,9 @@ The following clocks are available:
 * Local Mean Time (LMT) of your location
 * Greenwich Mean Sidereal Time (GMST)
 * Local Mean Sidereal Time (LMST) of your location
-* Julian Date (text only)
-* Modified Julian Date (text only)
-* Dublin Julian Date (text only)
+* Julian Date (digital only)
+* Modified Julian Date (digital only)
+* Dublin Julian Day (digital only)
 
 Additionally:
 
@@ -33,14 +33,24 @@ Additionally:
 
 ## Prerequisites
 
-You need a clock face or some knowledge in HTML and embedded SVG.
+Some knowledge in HTML and embedded SVG is useful but not essential.
+
+Javascript must be enabled.
 
 No jQuery required.
 
 ## Installation
 
-Put `webSocketClock.js` in some directory on your web server 
-together with an HTML file that includes the following:
+Put `webSocketClock.js` into some directory on your web server 
+together with `simpleclock.html` from the `html` subdirectory of
+this repository.
+
+You can then open `simpleclock.html`, and the clock starts running.
+Use parameters at the URL to control which kind of time is shown,
+for example `simpleclock.html?tz=UTC` for UTC.
+
+If you want to create your own clock design replace simpleclock.html
+by an HTML file that includes the following:
 
 ```
     <script src="webSocketClock.js"></script>
@@ -79,16 +89,20 @@ The element "show" describes what to be shown:
 * 6 - analogous with date
 * 7 - both with date
 
+The element "prefix" needs to be set, if you have more than one
+clock on one page, only. Otherwise, the element can be omitted
+and the default "ptb" is used.
+
 Examples for `conf`:
 
 * Central European Time clock
   ```
   conf = {CET:{}};
   ```
-  The IDs of the HTML elements start with 'ptb'.
+  The IDs of the HTML elements start with 'ptb' (the default).
 * UTC digital only
   ```
-  conf = {UTC:{show:5}}
+  conf = {UTC:{show:5}};
   ```
   The IDs of the HTML elements start with 'ptb'. To display the time, use:
   ```
@@ -97,7 +111,7 @@ Examples for `conf`:
   ```
 * two clocks, one showing LMT, the other LMST 
   ```
-  conf = {LMT:{prefix:'lmt'},LMST:{prefix:'lmst'}}
+  conf = {LMT:{prefix:'lmt'},LMST:{prefix:'lmst'}};
   ```
   The IDs of the HTML elements for the LMT clock start with 'lmt',
   that of the LMST clock with 'lmst'. 

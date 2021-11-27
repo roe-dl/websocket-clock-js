@@ -672,6 +672,7 @@ function webSocketClock(server_url,config_dict)
         angle*=360;
         el = document.getElementById(id);
         if (el) el.setAttribute('transform','rotate('+angle.toString()+',100,100)');
+        //if (el) el.setAttribute('transform','rotate('+angle.toString()+')');
       }
       
     // show connection error
