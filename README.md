@@ -116,6 +116,16 @@ Examples for `conf`:
   The IDs of the HTML elements for the LMT clock start with 'lmt',
   that of the LMST clock with 'lmst'. 
 
+## Designing your own clock face
+
+You may want to start with the command line tool `createClockFace.py`
+in the `tools` directory. Start it as
+```
+createClockFace.py --help
+```
+to see the available options. After you saved the resulting output
+to a file, you can further style the clock face.
+
 ## Links
 
 * [Example Page showing the possibilities](https://www.woellsdorf-wetter.de/clock/astronomy.html)
