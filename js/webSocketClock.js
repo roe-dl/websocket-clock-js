@@ -216,7 +216,11 @@ function webSocketClock(server_url,config_dict)
               }
           }
       }
+      
 
+    // send rquest to the server
+    // Note: The request includes the actual local time of the client's
+    //       clock to measure the roundtrip time
     function sendPTB(text,reset_array)
       {
         if (reset_array) results_array = Array();
@@ -255,6 +259,7 @@ function webSocketClock(server_url,config_dict)
         time_ws.onclose = function(event)
           {
             ws_connected = false;
+            ws_active = false;
             set_conn_state('disconnected');
             console.log("websocket clock closed");
           }
@@ -263,6 +268,7 @@ function webSocketClock(server_url,config_dict)
         time_ws.onerror = function(event)
           {
             ws_connected = false;
+            ws_active = false;
             set_conn_state('disconnected');
             console.log("websocket clock error ", event);
           }
@@ -402,7 +408,7 @@ function webSocketClock(server_url,config_dict)
         // immediately set up next call
         setTimeout(sidereal_tick,t);
         
-        if (ts-sidereal_tick.last_ts>3200)
+        if (ts-sidereal_tick.last_ts>3200 || !ws_connected)
           {
             // reset clock
             if (clock.gmst.show)
@@ -441,7 +447,7 @@ function webSocketClock(server_url,config_dict)
         // immediately set up next call
         setTimeout(lmt_tick,t);
         
-        if (ts-lmt_tick.last_ts>3200)
+        if (ts-lmt_tick.last_ts>3200 || !ws_connected)
           {
             // reset clock
             setClock(0,clock.lmt.name,'UTC',lmtoffsetutc,clock.lmt.prefix,clock.lmt.show);
@@ -474,7 +480,7 @@ function webSocketClock(server_url,config_dict)
         // immediately set up next call
         setTimeout(second_tick,t);
         
-        if (ts-second_tick.last_ts>3200)
+        if (ts-second_tick.last_ts>3200 || !ws_connected)
           {
             if (clock.utc.show)
               setClock(0,"UTC",'UTC',0,clock.utc.prefix,clock.utc.show);

@@ -1,5 +1,7 @@
 # WebSocket Clock
 
+<img src="simpleClock.png />
+
 ## Preface
 
 There are a lot of web sites out there in the Internet that provide
