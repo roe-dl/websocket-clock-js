@@ -1,6 +1,6 @@
 # WebSocket Clock
 
-<img src="simpleClock.png />
+<img src="simpleClock.png" />
 
 ## Preface
 
