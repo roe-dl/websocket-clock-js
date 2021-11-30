@@ -52,6 +52,12 @@ def main():
     sgroup.add_option("--background-color", dest='backgroundcolor', type=str, metavar="INVALID,CONNECTED,DISCONNECTED",
                       default="#000000,#eaeaea,#ffb2b2",
                       help="color of the clock face background")
+    sgroup.add_option("--scale-style", dest='scalestyle', type=str, metavar="TYPE",
+                      default="line",
+                      help="scale style, possible values are 'line' and 'dot', default 'line'")
+    sgroup.add_option("--scale-radius", dest='scaleradius', type=float, metavar="PERCENT",
+                      default=None,
+                      help="outside radius of the scale circle in percent of the clock diameter, default 50% for scale style 'line' and 46% for 'dot'")
     parser.add_option_group(sgroup)
     # parse arguments
     (options, args) = parser.parse_args()
@@ -62,6 +68,11 @@ def main():
     svg_options['scaleColor'] = options.scalecolor
     svg_options['backgroundColor'] = options.backgroundcolor.split(',')
     svg_options['handColor'] = options.handcolor
+    svg_options['scaleStyle'] = options.scalestyle
+    if options.scaleradius is None:
+        svg_options['scaleRadius'] = 50 if svg_options['scaleStyle']=='line' else 46
+    else:
+        svg_options['scaleRadius'] = options.scaleradius
     # start program
     if options.html:
         create_html(options.server,options.tz,svg_options)
@@ -140,7 +151,7 @@ END_HTML = '''      </div>
 </html>
 '''
 
-START_SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="00 0 200 200">
+START_SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <g font-family="sans-serif">
 '''
 END_SVG = '''  </g>
@@ -188,6 +199,11 @@ def create_svg(svg_options):
     print(CLOCK_BACKGROUND % (bc[0],bc[1],bc[2]))
     print(CLOCK_AXIS % hc)
     if ('hScale' in svg_options or 'mScale' in svg_options):
+        r = svg_options['scaleRadius'] # percent of the viewBox
+        try:
+            sty = svg_options['scaleStyle']
+        except Exception:
+            sty = 'line'
         for i in range(0,60):
             a = i/30*math.pi
             if (i%5)==0 and 'hScale' in svg_options:
@@ -202,7 +218,10 @@ def create_svg(svg_options):
                 l = 0
                 b = 0
             if (l>0 and b>0):
-                print(CLOCK_MIN % (50+(50-l)*math.cos(a),50+(50-l)*math.sin(a),50+50*math.cos(a),50+50*math.sin(a),sc,b))
+                if sty=='line':
+                    print(CLOCK_MIN % (50+(r-l)*math.cos(a),50+(r-l)*math.sin(a),50+r*math.cos(a),50+r*math.sin(a),sc,b))
+                elif sty=='dot':
+                    print('<circle cx="%.6f%%" cy="%.6f%%" r="%s" fill="%s" />' % (50+r*math.cos(a),50+r*math.sin(a),b/2,sc))
     print(CLOCK_DIGITAL % sc)
     print('''    <text id="ptbNotice" x="50%" y="69.5%" text-anchor="middle" font-weight="bold" font-size="9px" fill="black"></text>''')
     print('''    <!-- deviation -->
