@@ -129,7 +129,7 @@ START_HTML='''<!DOCTYPE html>
       }
     </script>
 
-    <div style="width:100%;display:flex">
+    <div style="width:100%%;display:flex">
       <div style="width:400px;margin:0 auto">
 '''
 END_HTML = '''      </div>
@@ -147,19 +147,20 @@ END_SVG = '''  </g>
 </svg>
 '''
 CLOCK_BACKGROUND = '    <circle id="ptbFaceBackground" cx="50%%" cy="50%%" r="50%%"" fill="%s" data-fill-connected="%s" data-fill-disconnected="%s"/>'
-CLOCK_MIN = '    <line x1="%.6f%%" y1="%.6f%%" x2="%.6f%%" y2="%.6f%%" stroke="%s" stroke-width="%s"/>'
+CLOCK_MIN = '    <line x1="%.6f%%" y1="%.6f%%" x2="%.6f%%" y2="%.6f%%" stroke="%s" stroke-width="%s" />'
 CLOCK_AXIS = '    <circle cx="50%%" cy="50%%" r="5" fill="%s" />'
 HOUR_HAND = '''    <!-- hour hand - Stundenzeiger -->
     <g id="ptbHourHand" transform="rotate(0,50%%,50%%)">
-      <line x1="50%%" y1="50%%" x2="50%%" y2="20%%" stroke="%s" stroke-width="7" />
+      <line x1="50%%" y1="50%%" x2="50%%" y2="20%%" stroke="%s" stroke-width="7" stroke-linecap="round" />
     </g>'''
 MINUTE_HAND = '''    <!-- minute hand - Minutenzeiger -->
     <g id="ptbMinuteHand" transform="rotate(0,50%%,50%%)">
-      <line x1="50%%" y1="50%%" x2="50%%" y2="9%%" stroke="%s" stroke-width="5" />
+      <line x1="50%%" y1="50%%" x2="50%%" y2="9%%" stroke="%s" stroke-width="5" stroke-linecap="round" />
     </g>'''
 SECOND_HAND = '''    <!-- second hand - Sekundenzeiger -->
     <g id="ptbSecondHand" transform="rotate(0,50%,50%)">
-      <line x1="50%" y1="50%" x2="50%" y2="5%" stroke="red" stroke-width="2" />
+      <line x1="50%" y1="50%" x2="50%" y2="5%" stroke="red" stroke-width="2" stroke-linecap="round" />
+      <circle cx="50%" cy="50%" r="2" fill="red" />
     </g>'''
 CLOCK_DIGITAL = '''    <!-- digital -->
     <g id="ptbSwitchClock" text-anchor="middle"  letter-spacing="-0.2" font-size="8px" style="fill:%s;stroke:none;cursor:pointer;">
