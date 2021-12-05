@@ -38,7 +38,7 @@
           GMST:{show:0,prefix:'ptb'},
           LMST:{show:0,prefix:'ptb'}
         }
-        webSocketClock(server_url,conf); }
+        clock = new WebSocketClock(server_url,conf); }
     </script>
     <svg ...>
       <!-- clock face -->
@@ -75,88 +75,124 @@
     Germany. For details see https://uhr.ptb.de/wst/paper
 */
 
-function webSocketClock(server_url,config_dict)
+
+// Constructor
+function WebSocketClock(server_url,config_dict)
   {
   
     // global settings
-    var ptb_interval = 60000; // ms 
-    var avg_length = 5; // amount of packets to calculate the delay
-    var time_delta;     // difference between local clock and PTB clock
-    var leap_delta = 0; // leap ms correction
-    var accuracy = 0;   // roundtrip accuracy
-    var iso_date = false;
-    var lmtoffsetutc = 3129600;
+    this.ptb_interval = 60000; // ms 
+    this.avg_length = 5; // amount of packets to calculate the delay
+    this.time_delta;     // difference between local clock and PTB clock
+    this.leap_delta = 0; // leap ms correction
+    this.accuracy = 0;   // roundtrip accuracy
+    this.iso_date = false;
+    this.lmtoffsetutc = 3129600;
     
     // web socket
     var time_ws;
-    var ws_connected = false;
-    var ws_active = false;
-    var ws_timeout;
-    var ws_lastcheck = 0;
+    this.ws_connected = false;
+    this.ws_active = false;
+    this.ws_timeout;
+    this.ws_lastcheck = 0;
 
     // array to save values to find the best result
     var results_array = Array();
     
     // clock
-    var is_not_running = true;
+    this.is_not_running = true;
     
     // configuration data
-    var clock = {
+    this.clock = {
       utc:  {show:0, prefix:'ptb'},
       cet:  {show:0, prefix:'ptb', name:'MEZ', offset:3600000, dst_name:'MESZ'},
       lmt:  {show:0, prefix:'ptb', name:'LMT'},
       gmst: {show:0, prefix:'ptb'},
       lmst: {show:0, prefix:'ptb'}
     };
+    this.sidereal = Array();
+    this.sidereallocal = Array();
+    this.solar = Array();
+    this.solarlocal = Array();
 
     // read configuration    
-    if ('iso_date' in config_dict) iso_date = config_dict.iso_date;
     if ('longitude' in config_dict) 
-      lmtoffsetutc = config_dict.longitude*240000;
+      this.lmtoffsetutc = config_dict.longitude*240000;
     else if (navigator.geolocation)
-      navigator.geolocation.getCurrentPosition(function(pos){lmtoffsetutc=pos.coords.longitude*240000;
-                        set_degree('clockLongitude',lmtoffsetutc/240000,['O','W']);});
-    if ('UTC' in config_dict)
+      navigator.geolocation.getCurrentPosition(function(pos){this.lmtoffsetutc=pos.coords.longitude*240000;
+                        this.set_degree('clockLongitude',this.lmtoffsetutc/240000,['O','W']);});
+    for (ii in config_dict)
       {
-        // UTC
-        clock.utc.show = ('show' in config_dict.UTC)?config_dict.UTC.show:7;
-        if ('prefix' in config_dict.UTC) clock.utc.prefix=config_dict.UTC.prefix;
+        if (ii == 'iso_date') 
+          this.iso_date = config_dict[ii];
+        else if (ii == 'longitude') 
+          {}
+        else if (ii == 'UTC')
+          {
+            // UTC
+            this.clock.utc.show = ('show' in config_dict.UTC)?config_dict.UTC.show:7;
+            if ('prefix' in config_dict.UTC) this.clock.utc.prefix=config_dict.UTC.prefix;
+            this.clock.utc.name = 'UTC';
+            this.clock.utc.offset = 0;
+            this.solar.push(this.clock.utc);
+          }
+        else if (ii == 'CET' || ii == 'MEZ')
+          {
+            // Central European Time
+            this.clock.cet.show = ('show' in config_dict.CET)?config_dict.CET.show:7;
+            if ('prefix' in config_dict.CET) this.clock.cet.prefix=config_dict.CET.prefix;
+            if ('name' in config_dict.CET) this.clock.cet.name=config_dict.CET.name;
+            if ('dst_name' in config_dict.CET) this.clock.cet.dst_name=config_dict.CET.dst_name;
+            this.clock.cet.offset=3600000;
+            this.solar.push(this.clock.cet);
+          }
+        else if (ii == 'tz')
+          {
+            // timezone time defined by user
+            this.clock.cet.show = ('show' in config_dict.tz)?config_dict.tz.show:7;
+            if ('prefix' in config_dict.tz) this.clock.cet.prefix=config_dict.tz.prefix;
+            this.clock.cet.name=config_dict.tz.name;
+            this.clock.cet.offset=config_dict.tz.offset;
+            this.clock.cet.dst_name=('dst_name' in config_dict.tz)?config_dict.tz.dst_name:'';
+            this.solar.push(this.clock.cet);
+          }
+        else if (ii == 'LMT')
+          {
+            // Local Mean Time
+            this.clock.lmt.show = ('show' in config_dict.LMT)?config_dict.LMT.show:7;
+            if ('prefix' in config_dict.LMT) this.clock.lmt.prefix=config_dict.LMT.prefix;
+            this.solarlocal.push(this.clock.lmt);
+          }
+        else if (ii == 'GMST')
+          {
+            this.clock.gmst.show = ('show' in config_dict.GMST)?config_dict.GMST.show:3;
+            if ('prefix' in config_dict.GMST) this.clock.gmst.prefix=config_dict.GMST.prefix;
+            this.clock.gmst.name = ('name' in config_dict.GMST)?config_dict.GMST.name:ii;
+            this.sidereal.push(this.clock.gmst);
+          }
+        else if (ii == 'LMST')
+          {
+            this.clock.lmst.show = ('show' in config_dict.LMST)?config_dict.LMST.show:3;
+            if ('prefix' in config_dict.LMST) this.clock.lmst.prefix=config_dict.LMST.prefix;
+            this.clock.lmst.name = ('name' in config_dict.LMST)?config_dict.LMST.name:ii;
+            this.sidereallocal.push(this.clock.lmst);
+          }
+        else
+          {
+            let tz = ii.toLowerCase();
+            this.clock[tz] = {};
+            this.clock[tz].show = ('show' in config_dict[ii])?config_dict[ii].show:7;
+            this.clock[tz].prefix = ('prefix' in config_dict[ii])?config_dict[ii].prefix:'ptb';
+            this.clock[tz].name = ('name' in config_dict[ii])?config_dict[ii].name:ii;
+            this.clock[tz].dst_name = ('dst_name' in config_dict[ii])?config_dict[ii].dst_name:'';
+            this.clock[tz].offset = config_dict[ii].offset;
+            if ((this.clock[tz].offset%1000)==0)
+              this.solar.push(this.clock[tz]);
+            else
+              this.solarlocal(this.clock[tz]);
+          }
       }
-    if ('CET' in config_dict)
-      {
-        // Central European Time
-        clock.cet.show = ('show' in config_dict.CET)?config_dict.CET.show:7;
-        if ('prefix' in config_dict.CET) clock.cet.prefix=config_dict.CET.prefix;
-        if ('name' in config_dict.CET) clock.cet.name=config_dict.CET.name;
-        if ('dst_name' in config_dict.CET) clock.cet.dst_name=config_dict.CET.dst_name;
-        clock.cet.offset=3600000;
-      }
-    else if ('tz' in config_dict)
-      {
-        // timezone time defined by user
-        clock.cet.show = ('show' in config_dict.tz)?config_dict.tz.show:7;
-        if ('prefix' in config_dict.tz) clock.cet.prefix=config_dict.tz.prefix;
-        clock.cet.name=config_dict.tz.name;
-        clock.cet.offset=config_dict.tz.offset;
-        clock.cet.dst_name=('dst_name' in config_dict.tz)?config_dict.tz.dst_name:'';
-      }
-    if ('LMT' in config_dict)
-      {
-        // Local Mean Time
-        clock.lmt.show = ('show' in config_dict.LMT)?config_dict.LMT.show:7;
-        if ('prefix' in config_dict.LMT) clock.lmt.prefix=config_dict.LMT.prefix;
-      }
-    if ('GMST' in config_dict)
-      {
-        clock.gmst.show = ('show' in config_dict.GMST)?config_dict.GMST.show:3;
-        if ('prefix' in config_dict.GMST) clock.gmst.prefix=config_dict.GMST.prefix;
-      }
-    if ('LMST' in config_dict)
-      {
-        clock.lmst.show = ('show' in config_dict.LMST)?config_dict.LMST.show:3;
-        if ('prefix' in config_dict.LMST) clock.lmst.prefix=config_dict.LMST.prefix;
-      }
-    if (!clock.utc.show&&!clock.cet.show&&!clock.lmt.show&&!clock.gmst.show&&!clock.lmst.show)
+    if (this.sidereal.length==0&&this.solar.length==0&&this.solarlocal.length==0&&this.sidereallocal.length==0)
       console.log("no clock to be displayed according to configuration");
     
     // The following funcition is Copyright PTB
@@ -181,11 +217,11 @@ function webSocketClock(server_url,config_dict)
       }
     
     // set up script to switch deviation display on and off
-    for (ii in clock)
+    for (ii in this.clock)
       {
-        if (clock[ii].show&3)
+        if (this.clock[ii].show&3)
           {
-            let prefix = clock[ii].prefix;
+            let prefix = this.clock[ii].prefix;
             var el = document.getElementById(prefix+'LinkDeviation');
             if (el)
               {
@@ -217,7 +253,8 @@ function webSocketClock(server_url,config_dict)
           }
       }
       
-
+    let clock = this;
+    
     // send rquest to the server
     // Note: The request includes the actual local time of the client's
     //       clock to measure the roundtrip time
@@ -225,7 +262,7 @@ function webSocketClock(server_url,config_dict)
       {
         if (reset_array) results_array = Array();
         if (text!="") console.log("websocket clock "+text);
-        ws_active = true;
+        clock.ws_active = true;
         time_ws.send(JSON.stringify({c:performance.now()}));
       }
 
@@ -237,18 +274,18 @@ function webSocketClock(server_url,config_dict)
         // callback if socket is open
         time_ws.onopen = function(event)
           {
-            ws_connected = true;
-            set_conn_state('connected');
-            if (!ws_active)
+            clock.ws_connected = true;
+            clock.set_conn_state('connected');
+            if (!clock.ws_active)
               {
                 sendPTB("opened",true);
               }
             // show deviation display button
-            for (ii in clock)
+            for (ii in clock.clock)
               {
-                if (clock[ii].show&3)
+                if (clock.clock[ii].show&3)
                   {
-                    prefix = clock[ii].prefix;
+                    let prefix = clock.clock[ii].prefix;
                     let el = document.getElementById(prefix+'LinkDeviation');
                     if (el) el.style.display = 'block';
                   }
@@ -258,18 +295,18 @@ function webSocketClock(server_url,config_dict)
         // callback if socket is closed
         time_ws.onclose = function(event)
           {
-            ws_connected = false;
-            ws_active = false;
-            set_conn_state('disconnected');
+            clock.ws_connected = false;
+            clock.ws_active = false;
+            clock.set_conn_state('disconnected');
             console.log("websocket clock closed");
           }
           
         // callback in case of errors
         time_ws.onerror = function(event)
           {
-            ws_connected = false;
-            ws_active = false;
-            set_conn_state('disconnected');
+            clock.ws_connected = false;
+            clock.ws_active = false;
+            clock.set_conn_state('disconnected');
             console.log("websocket clock error ", event);
           }
           
@@ -279,47 +316,48 @@ function webSocketClock(server_url,config_dict)
             console.log("onmessage",results_array.length,event);
             
             // convert received message to JSON object
-            var data = JSON.parse(event.data);
+            let data = JSON.parse(event.data);
             
             // roundtrip time from client to server and back
-            var roundtrip_time = performance.now()-data.c;
+            let roundtrip_time = performance.now()-data.c;
             
             // calculate time difference between local and server clock
             // (assuming that both directions are similar fast)
-            var delta = performance.now()-data.s-roundtrip_time/2.0;
+            let delta = performance.now()-data.s-roundtrip_time/2.0;
             
             // leap second announced?
-            var leap = data.l||0;
+            let leap = data.l||0;
             
             // if leep===3 server clock not synchronized --> data not valid
             if (leap===3)
               {
-                set_conn_state('server sync error');
-                ws_active = false;
-                ws_timeout = setTimeout(function() {
+                clock.set_conn_state('server sync error');
+                clock.ws_active = false;
+                clock.ws_timeout = setTimeout(function() {
                   sendPTB("trying resync",true);},
-                  ptb_interval);
+                  clock.ptb_interval);
                 return;
               }
             
             // save results for better accuracy
             // source: PTB
             results_array.push([delta,roundtrip_time,data.e])
-            if (results_array.length>avg_length)
+            if (results_array.length>clock.avg_length)
               {
                 results_array.shift();
               }
             results_array.sort(function(a,b){return a[1]-b[1]});
             
             // use the value with the lowest roundtrip
-            time_delta = results_array[0][0];
-            leap_delta = 0;
+            clock.time_delta = results_array[0][0];
+            clock.leap_delta = 0;
             accuracy = Math.round(results_array[0][1]/2+results_array[0][2])
             // calculate deviation
-            var local_system_time = new Date();
-            set_deviation(local_system_time.getTime()-performance.now()+time_delta);
+            //var local_system_time = new Date();
+            //clock.set_deviation(local_system_time.getTime()-performance.now()+clock.time_delta);
+            clock.set_deviation();
             
-            if (results_array.length<avg_length)
+            if (results_array.length<clock.avg_length)
               {
                 // array is not filled, next request immediately
                 sendPTB("",false);
@@ -327,27 +365,37 @@ function webSocketClock(server_url,config_dict)
             else
               {
                 // after receiving avg_length messages, start the clock
-                if (is_not_running) 
+                if (clock.is_not_running) 
                   {
-                    is_not_running = false;
-                    if (clock.utc.show||clock.cet.show)
-                      second_tick();
-                    if (clock.lmt.show)
-                      lmt_tick();
-                    if (clock.gmst.show||clock.lmst.show)
-                      sidereal_tick();
+                    clock.is_not_running = false;
+                    if (clock.solar.length>0)
+                      {
+                        clock.solartick = new SolarTick(clock,clock.solar,0);
+                      }
+                    if (clock.solarlocal.length>0)
+                      {
+                        clock.lmttick = new SolarTick(clock,clock.solarlocal,clock.lmtoffsetutc);
+                      }
+                    if (clock.sidereal.length>0)
+                      {
+                        clock.siderealtick = new SiderealTick(clock,clock.sidereal,0);
+                      }
+                    if (clock.sidereallocal.length>0)
+                      {
+                        clock.sidereallocaltick = new SiderealTick(clock,clock.sidereallocal,clock.lmtoffsetutc);
+                      }
                   }
                 // 
-                ws_active = false;
-                ws_timeout = setTimeout(function()
+                clock.ws_active = false;
+                clock.ws_timeout = setTimeout(function()
                   {
                     if (time_ws.readyState===time_ws.OPEN)
                       {
                         sendPTB("",true);
                       }
                   },
-                  ptb_interval);
-                set_degree('clockLongitude',lmtoffsetutc/240000,['O','W']);
+                  clock.ptb_interval);
+                clock.set_degree('clockLongitude',clock.lmtoffsetutc/240000,['O','W']);
               }
             
           } // onmessage
@@ -359,13 +407,13 @@ function webSocketClock(server_url,config_dict)
         // check again in 1s
         setTimeout(start_connection,1000);
         // check connection
-        if (ws_connected)
+        if (clock.ws_connected)
           {
             // connected --> check whether the window was sleeping
-            if (performance.now()-ws_lastcheck>3200)
+            if (performance.now()-clock.ws_lastcheck>3200)
               {
                 // slept --> wake up
-                clearTimeout(ws_timeout);
+                clearTimeout(clock.ws_timeout);
                 sendPTB("restart after sleep",true);
               }
           }
@@ -375,30 +423,26 @@ function webSocketClock(server_url,config_dict)
             connect_server();
           }
         // remember last check
-        ws_lastcheck = performance.now();
+        clock.ws_lastcheck = performance.now();
       }
+    
+    start_connection();
+  }
+  
 
-    // calculate sidereal time from UTC
-    // utc is in milliseconds
-    // result is in sidereal seconds
-    function sidereal_time(utc)
-      {
-        var dp = utc%86400000;
-        var T = ((utc-dp)/86400000-10957.5)/36525;
-        dp/=1000;
-        var GMST = 24110.54841 + 8640184.812866*T + 0.093104*T*T + 0.0000062*T*T*T + dp*1.00273790935;
-        return GMST;
-      }
-      
+// sidereal time tick (1 sidereal second = 0.99726966 solar seconds)
+function SiderealTick(server,confs,milliseconds)
+  {
+    let clock = server;
+    let clocks = confs;
+    let offset = milliseconds;
+    let last_ts = clock.sidereal_time(performance.now()-clock.time_delta+offset);
+
     // clock tick for local mean time
     function sidereal_tick()
       {
-        // internal value
-        if (typeof sidereal_tick.last_ts=='undefined') 
-            sidereal_tick.last_ts = sidereal_time(performance.now()-time_delta);
-        
         // get PTB UTC time
-        var ts = sidereal_time(performance.now()-time_delta);
+        var ts = clock.sidereal_time(performance.now()-clock.time_delta+offset);
 
         // Sometimes the time is ...999. Don't set up a timeout <10ms.
         t = 997.269663194444-(ts%1)*1000;
@@ -408,69 +452,53 @@ function webSocketClock(server_url,config_dict)
         // immediately set up next call
         setTimeout(sidereal_tick,t);
         
-        if (ts-sidereal_tick.last_ts>3200 || !ws_connected)
+        if (ts-last_ts>3200 || !clock.ws_connected)
           {
             // reset clock
-            if (clock.gmst.show)
-              setClock(0,'GMST','GMST',0,clock.gmst.prefix,clock.gmst.show&~4);
-            if (clock.lmst.show)
-              setClock(0,'LMST','GMST',lmtoffsetutc,clock.lmst.prefix,clock.lmst.show&~4);
+            for (ii in clocks)
+              {
+                clock.setClock(0,clocks[ii].name,'GMST',offset,clocks[ii].prefix,clocks[ii].show&~4);
+              }
+            //if (clock.clock.gmst.show)
+            //  clock.setClock(0,'GMST','GMST',0,clock.clock.gmst.prefix,clock.clock.gmst.show&~4);
+            //if (clock.clock.lmst.show)
+            //  clock.setClock(0,'LMST','GMST',clock.lmtoffsetutc,clock.clock.lmst.prefix,clock.clock.lmst.show&~4);
           }
         else
           {
             // set clock
-            if (clock.gmst.show)
-              setClock(ts*1000,'GMST','GMST',0,clock.gmst.prefix,clock.gmst.show&~4);
-            if (clock.lmst.show)
-              setClock(ts*1000+lmtoffsetutc,'LMST','GMST',lmtoffsetutc,clock.lmst.prefix,clock.lmst.show&~4);
+            for (ii in clocks)
+              {
+                clock.setClock(ts*1000,clocks[ii].name,'GMST',offset,clocks[ii].prefix,clocks[ii].show&~4);
+              }
+            //if (clock.clock.gmst.show)
+            //  clock.setClock(ts*1000,'GMST','GMST',0,clock.clock.gmst.prefix,clock.clock.gmst.show&~4);
+            //if (clock.clock.lmst.show)
+            //  clock.setClock(ts*1000+clock.lmtoffsetutc,'LMST','GMST',clock.lmtoffsetutc,clock.clock.lmst.prefix,clock.clock.lmst.show&~4);
           }
         
         // remember last timestamp
-        sidereal_tick.last_ts = ts;
+        last_ts = ts;
       }
       
-    // clock tick for local mean time
-    function lmt_tick()
+    sidereal_tick();
+  }
+    
+// solar time tick (1 UTC second)
+function SolarTick(server,confs,milliseconds)
+  {
+    let clock = server;
+    let clocks = confs;
+    let offset = milliseconds;
+    let last_ts = performance.now()-clock.time_delta+offset;
+    //let td = NaN;
+    
+    function tick()
       {
-        // internal value
-        if (typeof lmt_tick.last_ts=='undefined') 
-            lmt_tick.last_ts = performance.now()-time_delta+lmtoffsetutc;
-        
-        // get PTB UTC time
-        var ts = performance.now()-time_delta+lmtoffsetutc;
+        //if (clock.time_delta!=td) { console.log(clock.time_delta); td=clock.time_delta; }
 
-        // Sometimes the time is ...999. Don't set up a timeout <10ms.
-        t = 1000-ts%1000;
-        if (t<10) t+=1000;
-        //console.log("lmt_tick",ts,lmt_tick.last_ts,ts-lmt_tick.last_ts,t)
-        
-        // immediately set up next call
-        setTimeout(lmt_tick,t);
-        
-        if (ts-lmt_tick.last_ts>3200 || !ws_connected)
-          {
-            // reset clock
-            setClock(0,clock.lmt.name,'UTC',lmtoffsetutc,clock.lmt.prefix,clock.lmt.show);
-          }
-        else
-          {
-            // set clock
-            setClock(ts,clock.lmt.name,'UTC',lmtoffsetutc,clock.lmt.prefix,clock.lmt.show);
-          }
-        
-        // remember last timestamp
-        lmt_tick.last_ts = ts;
-      }
-      
-    // clock tick for UTC and timezone time
-    function second_tick()
-      {
-        // internal value
-        if (typeof second_tick.last_ts=='undefined') 
-            second_tick.last_ts = performance.now()-time_delta;
-        
         // get PTB UTC time
-        var ts = performance.now()-time_delta;
+        var ts = performance.now()-clock.time_delta+offset;
 
         // Sometimes the time is ...999. Don't set up a timeout <10ms.
         t = 1000-ts%1000;
@@ -478,47 +506,79 @@ function webSocketClock(server_url,config_dict)
         //console.log("second_tick",ts,second_tick.last_ts,ts-second_tick.last_ts,t)
         
         // immediately set up next call
-        setTimeout(second_tick,t);
+        setTimeout(tick,t);
         
-        if (ts-second_tick.last_ts>3200 || !ws_connected)
+        if (ts-last_ts>3200 || !clock.ws_connected)
           {
-            if (clock.utc.show)
-              setClock(0,"UTC",'UTC',0,clock.utc.prefix,clock.utc.show);
-            if (clock.cet.show)
-              setClock(0,"MEZ",'UTC',0,clock.cet.prefix,clock.cet.show);
+            //if (clock.clock.utc.show)
+            //  clock.setClock(0,"UTC",'UTC',0,clock.clock.utc.prefix,clock.clock.utc.show);
+            //if (clock.clock.cet.show)
+            //  clock.setClock(0,"MEZ",'UTC',0,clock.clock.cet.prefix,clock.clock.cet.show);
+            for (ii in clocks)
+              {
+                let cet_offset = ('offset' in clocks[ii])?clocks[ii].offset:0;
+                clock.setClock(0,clocks[ii].name,'UTC',cet_offset+offset,clocks[ii].prefix,clocks[ii].show);
+              }
           }
         else
           {
             // set clock
             //console.log("tick", ts);
-            if (clock.utc.show)
+            for (ii in clocks)
               {
-                setClock(ts,"UTC",'UTC',0,clock.utc.prefix,clock.utc.show);
-              }
-            if (clock.cet.show)
-              {
-                cet_offset = clock.cet.offset;
-                cet_name = clock.cet.name;
-                if (clock.cet.dst_name!='') if (is_dst(ts))
+                let cet_offset = ('offset' in clocks[ii])?clocks[ii].offset:0;
+                let cet_name = clocks[ii].name;
+                if (clocks[ii].dst_name!='')
                   {
-                    cet_offset += 3600000;
-                    cet_name = clock.cet.dst_name;
+                    // time zone with daylight savings time
+                    if (clock.is_dst(ts))
+                      {
+                        cet_offset += 3600000;
+                        cet_name = clocks[ii].dst_name;
+                      }
                   }
-                setClock(ts+cet_offset,cet_name,'UTC',cet_offset,clock.cet.prefix,clock.cet.show);
+                clock.setClock(ts+cet_offset,cet_name,'UTC',cet_offset+offset,clocks[ii].prefix,clocks[ii].show);
               }
             // TODO: condition
-            if (1)
+            if (offset==0)
               {
-                set_julian_date('JDUTC',ts/86400000+2440587.5);
-                set_julian_date('MJDUTC',ts/86400000+40587.0);
-                set_julian_date('DJDUTC',ts/86400000+25567.5);
+                clock.set_julian_date('JDUTC',ts/86400000+2440587.5);
+                clock.set_julian_date('MJDUTC',ts/86400000+40587.0);
+                clock.set_julian_date('DJDUTC',ts/86400000+25567.5);
               }
           }
           
-        second_tick.last_ts = ts;
+        last_ts = ts;
       }
-      
-    function is_dst(ts)
+    
+    tick();
+
+  }
+
+
+// return UTC according to atomic clock of PTB  
+WebSocketClock.prototype.valueOf = function()
+  {
+    if (this.ws_connected)
+      return performance.now()-this.time_delta  
+    return NaN;
+  }
+  
+  
+// calculate sidereal time from UTC
+// utc is in milliseconds
+// result is in sidereal seconds
+WebSocketClock.prototype.sidereal_time = function sidereal_time(utc)
+  {
+    let dp = utc%86400000;
+    let T = ((utc-dp)/86400000-10957.5)/36525;
+    dp/=1000;
+    let GMST = 24110.54841 + 8640184.812866*T + 0.093104*T*T + 0.0000062*T*T*T + dp*1.00273790935;
+    return GMST;
+  }
+
+// check if daylight savings time applies      
+WebSocketClock.prototype.is_dst = function is_dst(utc_ts)
       {
         // works from 1970 up to 2099
         // Please note: This formula reports the 1st January of a
@@ -526,7 +586,7 @@ function webSocketClock(server_url,config_dict)
         // the days from March on have the same day_of_year value
         // in both leap and non-leap years. So the same algorithm
         // can be used in both cases.
-        day_since_1968 = ts/86400000+730;
+        day_since_1968 = utc_ts/86400000+730;
         x = Math.floor(day_since_1968/365.25);
         year = x+1968
         y = day_since_1968 - Math.floor(x*365.25);
@@ -539,7 +599,7 @@ function webSocketClock(server_url,config_dict)
         // November, Dezember
         if (day_of_year>=304) return false;
         // remaining days to the next sunday
-        weekday = 7-Math.floor(ts/86400000+4)%7; 
+        weekday = 7-Math.floor(utc_ts/86400000+4)%7; 
         // day of the switch
         if (weekday==7)
           {
@@ -566,9 +626,9 @@ function webSocketClock(server_url,config_dict)
         return true;
       }
       
-    // write time, timezone, and date into the HTML elements
-    function setClock(ts,zone,base_zone,offset,prefix,show)
-      {
+// write time, timezone, and date into the HTML elements
+WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,prefix,show)
+  {
         if (zone==base_zone&&offset==0)
           {
             // UTC, GMST
@@ -614,7 +674,7 @@ function webSocketClock(server_url,config_dict)
                 month += (x-y)/30.5;
                 if (y>=31) month++,y-=31;
                 day = y+1;
-                if (iso_date)
+                if (this.iso_date)
                   date_text = year.toString() + '-' +
                               (month<10?'0':'') + month.toString() + '-' +
                               (day<10?'0':'') + day.toString();
@@ -639,59 +699,59 @@ function webSocketClock(server_url,config_dict)
             // reset clock
             year=month=day=hour=minute=second=0;
             time_text = '--:--:--';
-            date_text = iso_date?'----------':'--.--.----';
+            date_text = this.iso_date?'----------':'--.--.----';
             console.log("reset clock",zone);
           }
         if (show&4)
           {
             // date
-            set_value(prefix+'Date',date_text);
+            this.set_value(prefix+'Date',date_text);
           }
         if (show&1)
           {
             // digital time
-            set_value(prefix+'Time',time_text);
-            set_value(prefix+'LocalTimezone',zone_text);
+            this.set_value(prefix+'Time',time_text);
+            this.set_value(prefix+'LocalTimezone',zone_text);
           }
         if (show&2)
           {
             // analogous time
-            set_hand(prefix+'HourHand',(hour%12.0)/12.0+minute/720.0);
-            set_hand(prefix+'MinuteHand',minute/60.0);
-            set_hand(prefix+'SecondHand',second/60.0);
+            this.set_hand(prefix+'HourHand',(hour%12.0)/12.0+minute/720.0);
+            this.set_hand(prefix+'MinuteHand',minute/60.0);
+            this.set_hand(prefix+'SecondHand',second/60.0);
           }
-      }
+  }
       
-    // write text value into an HTML element
-    // if the ID is not found, nothing is written and no error message
-    // is created
-    function set_value(id,text)
-      {
-        el = document.getElementById(id);
-        if (el) el.innerHTML = text;
-      }
+// write text value into an HTML element
+// if the ID is not found, nothing is written and no error message
+// is created
+WebSocketClock.prototype.set_value = function set_value(id,text)
+  {
+    el = document.getElementById(id);
+    if (el) el.innerHTML = text;
+  }
       
-    // set clock hand direction
-    function set_hand(id,angle)
-      {
-        //console.log(id,angle);
-        angle*=360;
-        el = document.getElementById(id);
-        if (el) el.setAttribute('transform','rotate('+angle.toString()+',100,100)');
-        //if (el) el.setAttribute('transform','rotate('+angle.toString()+')');
-      }
+// set clock hand direction
+WebSocketClock.prototype.set_hand = function set_hand(id,angle)
+  {
+    //console.log(id,angle);
+    angle*=360;
+    el = document.getElementById(id);
+    if (el) el.setAttribute('transform','rotate('+angle.toString()+',100,100)');
+    //if (el) el.setAttribute('transform','rotate('+angle.toString()+')');
+  }
       
-    // show connection error
-    function set_conn_state(state)
-      {
-        for (let ii in clock)
+// show connection error
+WebSocketClock.prototype.set_conn_state = function (state)
+  {
+        for (let ii in this.clock)
           {
-            if (clock[ii].show)
+            if (this.clock[ii].show)
               {
                 //console.log("set_conn_state",ii,state,clock[ii]);
-                prefix = clock[ii].prefix;
+                let prefix = this.clock[ii].prefix;
                 // set background color
-                el = document.getElementById(prefix+'FaceBackground');
+                let el = document.getElementById(prefix+'FaceBackground');
                 if (el)
                   {
                     if (state=='connected')
@@ -734,11 +794,13 @@ function webSocketClock(server_url,config_dict)
                   }
               }
           }
-      }
+  }
 
-    // time deviation of local system clock
-    function set_deviation(timediff)
-      {
+// time deviation of local system clock
+WebSocketClock.prototype.set_deviation = function set_deviation()
+  {
+        let local_system_time = new Date();
+        let timediff = local_system_time.getTime()-performance.now()+this.time_delta;
         //console.log(timediff);
         timediff = Math.round(timediff);
         td_sign = timediff<0;
@@ -782,12 +844,12 @@ function webSocketClock(server_url,config_dict)
               }
             td_text = td_text + ' ' + (td_sign?'nach':'vor');
           }
-        for (let ii in clock)
+        for (let ii in this.clock)
           {
-            if (clock[ii].show)
+            if (this.clock[ii].show)
               {
                 //console.log("set_deviation",ii,td_text,clock[ii]);
-                prefix = clock[ii].prefix;
+                prefix = this.clock[ii].prefix;
                 el = document.getElementById(prefix+'Offset');
                 if (el)
                   {
@@ -800,11 +862,11 @@ function webSocketClock(server_url,config_dict)
                   }
               }
           }
-      }
+  }
     
-    // Angle as degree, minute, second
-    function set_degree(id,angle,sign_symbol)
-      {
+// Angle as degree, minute, second
+WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
+  {
         el = document.getElementById(id);
         if (el)
           {
@@ -821,19 +883,15 @@ function webSocketClock(server_url,config_dict)
                            sec.toFixed(0) + '" ' +
                            dir;
           }
-      }
-
-    // Julian Date
-    function set_julian_date(id,value)
-      {
-        el = document.getElementById(id);
-        if (el)
-          {
-            el.innerHTML = value.toFixed(5).toString().replace('.',',');
-          }
-      }
-      
-    // start PTB connection and following that the clock
-    start_connection();
   }
 
+// Julian Date
+WebSocketClock.prototype.set_julian_date = function set_julian_date(id,value)
+  {
+    el = document.getElementById(id);
+    if (el)
+      {
+        el.innerHTML = value.toFixed(5).toString().replace('.',',');
+      }
+  }
+      

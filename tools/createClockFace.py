@@ -136,7 +136,7 @@ START_HTML='''<!DOCTYPE html>
         {
           conf.longitude = parseFloat(lon);
         }
-      webSocketClock("%s",conf); 
+      new WebSocketClock("%s",conf); 
       }
     </script>
 

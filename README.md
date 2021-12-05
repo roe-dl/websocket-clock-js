@@ -69,7 +69,7 @@ by an HTML file that includes the following:
           GMST:{show:0,prefix:'ptb'},
           LMST:{show:0,prefix:'ptb'}
         }
-        webSocketClock(server_url,conf); }
+        new WebSocketClock(server_url,conf); }
     </script>
     <svg ...>
       <!-- your clock face here -->
