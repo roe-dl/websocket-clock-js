@@ -125,7 +125,7 @@ function WebSocketClock(server_url,config_dict)
       {
         if (ii == 'iso_date') 
           this.iso_date = config_dict[ii];
-        else if (ii == 'longitude') 
+        else if (ii == 'longitude' || ii.substring(0,4)=='text') 
           {}
         else if (ii == 'UTC')
           {
@@ -288,6 +288,8 @@ function WebSocketClock(server_url,config_dict)
                     let prefix = clock.clock[ii].prefix;
                     let el = document.getElementById(prefix+'LinkDeviation');
                     if (el) el.style.display = 'block';
+                    el = document.getElementById(prefix+'Deviation');
+                    if (el) el.style.display = 'none';
                   }
               }
           }
@@ -867,22 +869,22 @@ WebSocketClock.prototype.set_deviation = function set_deviation()
 // Angle as degree, minute, second
 WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
   {
-        el = document.getElementById(id);
-        if (el)
-          {
-            let dir = angle<0?sign_symbol[1]:sign_symbol[0];
-            angle = Math.abs(angle);
-            let min = angle%1;
-            let deg = angle-min;
-            min = min*60;
-            sec = min%1;
-            min = min-sec;
-            sec = sec*60;
-            el.innerHTML = deg.toString() + '°' +
-                           min.toString() + "'" +
-                           sec.toFixed(0) + '" ' +
-                           dir;
-          }
+    el = document.getElementById(id);
+    if (el)
+      {
+        let dir = angle<0?sign_symbol[1]:sign_symbol[0];
+        angle = Math.abs(angle);
+        let min = angle%1;
+        let deg = angle-min;
+        min = min*60;
+        sec = min%1;
+        min = min-sec;
+        sec = sec*60;
+        el.innerHTML = deg.toString() + '°' +
+                       min.toString() + "'" +
+                       sec.toFixed(0) + '" ' +
+                       dir;
+      }
   }
 
 // Julian Date
