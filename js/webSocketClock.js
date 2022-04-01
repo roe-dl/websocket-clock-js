@@ -106,7 +106,7 @@ function WebSocketClock(server_url,config_dict)
     this.clock = {
       utc:  {show:0, prefix:'ptb'},
       cet:  {show:0, prefix:'ptb', name:'MEZ', offset:3600000, dst_name:'MESZ'},
-      lmt:  {show:0, prefix:'ptb', name:'LMT'},
+      lmt:  {show:0, prefix:'ptb', name:'LMT', dst_name:''},
       gmst: {show:0, prefix:'ptb'},
       lmst: {show:0, prefix:'ptb'}
     };
@@ -195,7 +195,7 @@ function WebSocketClock(server_url,config_dict)
     if (this.sidereal.length==0&&this.solar.length==0&&this.solarlocal.length==0&&this.sidereallocal.length==0)
       console.log("no clock to be displayed according to configuration");
     
-    // The following funcition is Copyright PTB
+    // The following function is Copyright PTB
     // e.g. Safari doesn't support window.performance, so build anything related, good enough as workaround
     if (typeof window.performance === 'undefined') 
       {
