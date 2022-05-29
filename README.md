@@ -27,11 +27,12 @@ The following clocks are available:
 * Julian Date (digital only)
 * Modified Julian Date (digital only)
 * Dublin Julian Day (digital only)
+* Relative Time (additional data needed)
 
 Additionally:
 
 * Longitude that belongs to the displayed LMT or LMST
-
+* Length of the relative second
 
 ## Prerequisites
 
@@ -67,7 +68,8 @@ by an HTML file that includes the following:
           tz:{show:0,prefix:'ptb',name:'...',offset:...,dst_name:'...'},
           LMT:{show:0,prefix:'ptb',name:'LMT'},
           GMST:{show:0,prefix:'ptb'},
-          LMST:{show:0,prefix:'ptb'}
+          LMST:{show:0,prefix:'ptb'},
+          rel:{show:0,prefix:'ptb',url:'...'}
         }
         new WebSocketClock(server_url,conf); }
     </script>
@@ -127,6 +129,27 @@ createClockFace.py --help
 ```
 to see the available options. After you saved the resulting output
 to a file, you can further style the clock face.
+
+## Relative Time
+
+In ancient times people divided both the light day and the night
+into 12 hours. Because sunrise and sunset vary in time, those
+hours also varied in length during the year. In summer the day
+hours were longer than the night hours, and vice versa in winter.
+Therefore it is called relative time (in german "Temporalzeit").
+
+So with that clock 00:00:00 is at the time of sunrise or sunset,
+and 06:00:00 is at high noon or midnight local time.
+
+To show that time, timestamps of sunrise and sunset are needed.
+That data is not provided by the PTB, so you have to provide it
+separately by a JSON file available for download. That JSON file
+must contain an array of sunset and sunrise timestamps, starting
+with a sunset in the past. 
+
+For example, that kind of time was used in ancient Israel. So
+you find such time data in the Bible. The time was used until the
+middle ages. So the Prague city hall clock shows this time.
 
 ## Links
 

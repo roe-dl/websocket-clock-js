@@ -1,5 +1,5 @@
 // Using the Websocket subprotocol time to drive a web clock
-// Copyright (C) 2021 Johanna Roedenbeck
+// Copyright (C) 2021, 2022 Johanna Roedenbeck
 
 /*
     This script is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@
     - time of local timezone
     - local mean time
     - sidereal time (local and Greenwich)
+    - relative time (additional data needed)
     
     Usage:
     
@@ -36,7 +37,8 @@
           tz:{show:0,prefix:'ptb',name:'...',offset:...,dst_name:'...'},
           LMT:{show:0,prefix:'ptb',name:'LMT'},
           GMST:{show:0,prefix:'ptb'},
-          LMST:{show:0,prefix:'ptb'}
+          LMST:{show:0,prefix:'ptb'},
+          rel:{show:0,prefix:'ptb',url:'...'}
         }
         clock = new WebSocketClock(server_url,conf); }
     </script>
@@ -88,6 +90,7 @@ function WebSocketClock(server_url,config_dict)
     this.accuracy = 0;   // roundtrip accuracy
     this.iso_date = false;
     this.lmtoffsetutc = 3129600;
+    this.sun = Array();
     
     // web socket
     var time_ws;
@@ -108,12 +111,15 @@ function WebSocketClock(server_url,config_dict)
       cet:  {show:0, prefix:'ptb', name:'MEZ', offset:3600000, dst_name:'MESZ'},
       lmt:  {show:0, prefix:'ptb', name:'LMT', dst_name:''},
       gmst: {show:0, prefix:'ptb'},
-      lmst: {show:0, prefix:'ptb'}
+      lmst: {show:0, prefix:'ptb'},
+      relative: {show:0, prefix:'ptb', name:'Temporalzeit', dst_name:''}
     };
     this.sidereal = Array();
     this.sidereallocal = Array();
     this.solar = Array();
     this.solarlocal = Array();
+
+    this.clock.relative.url = '/json/sunset_sunrise.json';
 
     // read configuration    
     if ('longitude' in config_dict) 
@@ -125,7 +131,7 @@ function WebSocketClock(server_url,config_dict)
       {
         if (ii == 'iso_date') 
           this.iso_date = config_dict[ii];
-        else if (ii == 'longitude' || ii.substring(0,4)=='text') 
+        else if (ii == 'longitude' || ii == 'latitude' || ii.substring(0,4)=='text') 
           {}
         else if (ii == 'UTC')
           {
@@ -165,6 +171,7 @@ function WebSocketClock(server_url,config_dict)
           }
         else if (ii == 'GMST')
           {
+            // Greenwich Mean Sidereal Time
             this.clock.gmst.show = ('show' in config_dict.GMST)?config_dict.GMST.show:3;
             if ('prefix' in config_dict.GMST) this.clock.gmst.prefix=config_dict.GMST.prefix;
             this.clock.gmst.name = ('name' in config_dict.GMST)?config_dict.GMST.name:ii;
@@ -172,10 +179,19 @@ function WebSocketClock(server_url,config_dict)
           }
         else if (ii == 'LMST')
           {
+            // Local Mean Sidereal Time
             this.clock.lmst.show = ('show' in config_dict.LMST)?config_dict.LMST.show:3;
             if ('prefix' in config_dict.LMST) this.clock.lmst.prefix=config_dict.LMST.prefix;
             this.clock.lmst.name = ('name' in config_dict.LMST)?config_dict.LMST.name:ii;
             this.sidereallocal.push(this.clock.lmst);
+          }
+        else if (ii == 'rel'|| ii == 'relative')
+          {
+            // Relative Time
+            this.clock.relative.show = ('show' in config_dict[ii])?config_dict[ii].show:3;
+            if ('prefix' in config_dict[ii]) this.clock.relative.prefix=config_dict[ii].prefix;
+            this.clock.relative.name = ('name' in config_dict[ii])?config_dict[ii].name:'Temporalzeit';
+            if ('url' in config_dict[ii]) this.clock.relative.url=config_dict[ii].url;
           }
         else
           {
@@ -189,10 +205,10 @@ function WebSocketClock(server_url,config_dict)
             if ((this.clock[tz].offset%1000)==0)
               this.solar.push(this.clock[tz]);
             else
-              this.solarlocal(this.clock[tz]);
+              this.solarlocal.push(this.clock[tz]);
           }
       }
-    if (this.sidereal.length==0&&this.solar.length==0&&this.solarlocal.length==0&&this.sidereallocal.length==0)
+    if (this.sidereal.length==0&&this.solar.length==0&&this.solarlocal.length==0&&this.sidereallocal.length==0&&this.clock.relative.show==0)
       console.log("no clock to be displayed according to configuration");
     
     // The following function is Copyright PTB
@@ -386,6 +402,10 @@ function WebSocketClock(server_url,config_dict)
                       {
                         clock.sidereallocaltick = new SiderealTick(clock,clock.sidereallocal,clock.lmtoffsetutc);
                       }
+                    if (clock.clock.relative.show)
+                      {
+                        clock.relativetick = new RelativeTick(clock,[clock.clock.relative],clock.clock.relative.url);
+                      }
                   }
                 // 
                 clock.ws_active = false;
@@ -430,7 +450,151 @@ function WebSocketClock(server_url,config_dict)
     
     start_connection();
   }
-  
+
+
+// relative time tick (1 relative second = abs(sunrise-sunset)/43200)
+function RelativeTick(server,confs,url)
+  {
+    let clock = server;
+    let clocks = confs;
+    let last_ts = 0;
+    let idx = 0;
+    let rel_sec = NaN;
+    let start_ts = NaN;
+    let initialize = 1;
+    
+    this.sun = Array();
+    this.fetch_timeout_id = undefined;
+    let sun = this;
+    
+    function fetch_sunset_sunrise()
+      {
+        let t = 10;
+        fetch(url)
+          .then(response => {
+            if (!response.ok) throw new Error('HTTP error');
+            return response.json() })
+          .then(function (data) 
+            { 
+              for (ii in data) data[ii]*=1000;
+              sun.sun = data; 
+              t = 3600000; 
+            })
+          .catch(function(error) 
+            { 
+              console.error('sunset/sunrise',error); 
+              t = 1000; 
+            })
+          .finally(function()
+            {
+              console.log('sun.sun',sun.sun,t); 
+              sun.fetch_timeout_id = setTimeout(fetch_sunset_sunrise,t);
+            });
+      }
+      
+    function refetch_sunset_sunrise()
+      {
+        if (sun.fetch_timeout_id !== undefined) 
+          {
+            clearTimeout(sun.fetch_timeout_id);
+            sun.fetch_timeout_id = undefined;
+          }
+        fetch_sunset_sunrise();
+      }
+      
+    function tick()
+      {
+        let t = NaN;
+        let x = NaN;
+        
+        if (sun.sun.length)
+          {
+          
+            // get PTB UTC time
+            var ts = performance.now()-clock.time_delta;
+
+            // check, whether sunset/sunrise occured since last tick
+            initialize = ts>=sun.sun[idx];
+            if (initialize)
+              {
+                // sunset/sunrise occured --> re-calculate rel_sec
+                for (idx=0;ts>=sun.sun[idx];idx+=1)
+                  if (idx>=sun.sun.length) 
+                    {
+                      refetch_sunset_sunrise();
+                      break;
+                    };
+                start_ts = sun.sun[idx-1];
+                len = sun.sun[idx]-start_ts;
+                rel_sec = len/43200;
+                console.log('relative second',rel_sec,'start_ts',start_ts,'len',len);
+              }
+          
+            // time elapsed since the last sunrise or sunset, respectively
+            x = ts-start_ts;
+        
+            // time to wait to the next tick
+            t = isNaN(rel_sec)?500:(rel_sec-x%rel_sec);
+            if (t<10) t += rel_sec;
+          }
+        else
+          {
+            // no sunset/sunrise values available --> try to get them
+            refetch_sunset_sunrise();
+            t = 500;
+            x = 0;
+            rel_sec = NaN;
+            initialize = 1;
+          }
+        // immediately set up next call
+        setTimeout(tick,t);
+        
+        x = Math.round(x/rel_sec,0);
+        let minute = x%3600;
+        let hour = (x-minute)/3600;
+        let second = minute%60;
+        minute = (minute-second)/60;
+        let time_text = (hour<10?'0':'') + hour.toString() + ':' +
+                        (minute<10?'0':'') + minute.toString() + ':' +
+                        (second<10?'0':'') + second.toString();
+        let day_night = (idx%2)?"Nacht":"Tag";
+        //console.log(x,hour,minute,second);
+
+        if (initialize)
+          {
+            el = document.getElementById(clocks[0].prefix+'RelativeSecond');
+            if (el)
+              {
+                if (isNaN(rel_sec))
+                  el.innerHTML = '---';
+                else
+                  el.innerHTML = (rel_sec/1000).toFixed(3).toString().replace('.',',')+'s';
+              }
+          }
+          
+        if (clocks[0].show&1)
+          {
+            // digital time
+            clock.set_value(clocks[0].prefix+'Time',time_text);
+            clock.set_value(clocks[0].prefix+'LocalTimezone',day_night);
+          }
+        if (clocks[0].show&2)
+          {
+            // analogous time
+            clock.set_hand(clocks[0].prefix+'HourHand',(hour%12.0)/12.0+minute/720.0);
+            clock.set_hand(clocks[0].prefix+'MinuteHand',minute/60.0);
+            clock.set_hand(clocks[0].prefix+'SecondHand',second/60.0);
+          }
+
+        // remember last timestamp
+        last_ts = ts;
+      }
+    
+    // download sunset and sunrise values
+    fetch_sunset_sunrise();
+    // let time to fetch sunset and sunrise values
+    setTimeout(tick,500);
+  }
 
 // sidereal time tick (1 sidereal second = 0.99726966 solar seconds)
 function SiderealTick(server,confs,milliseconds)
@@ -461,10 +625,6 @@ function SiderealTick(server,confs,milliseconds)
               {
                 clock.setClock(0,clocks[ii].name,'GMST',offset,clocks[ii].prefix,clocks[ii].show&~4);
               }
-            //if (clock.clock.gmst.show)
-            //  clock.setClock(0,'GMST','GMST',0,clock.clock.gmst.prefix,clock.clock.gmst.show&~4);
-            //if (clock.clock.lmst.show)
-            //  clock.setClock(0,'LMST','GMST',clock.lmtoffsetutc,clock.clock.lmst.prefix,clock.clock.lmst.show&~4);
           }
         else
           {
@@ -473,10 +633,6 @@ function SiderealTick(server,confs,milliseconds)
               {
                 clock.setClock(ts*1000,clocks[ii].name,'GMST',offset,clocks[ii].prefix,clocks[ii].show&~4);
               }
-            //if (clock.clock.gmst.show)
-            //  clock.setClock(ts*1000,'GMST','GMST',0,clock.clock.gmst.prefix,clock.clock.gmst.show&~4);
-            //if (clock.clock.lmst.show)
-            //  clock.setClock(ts*1000+clock.lmtoffsetutc,'LMST','GMST',clock.lmtoffsetutc,clock.clock.lmst.prefix,clock.clock.lmst.show&~4);
           }
         
         // remember last timestamp
@@ -512,10 +668,6 @@ function SolarTick(server,confs,milliseconds)
         
         if (ts-last_ts>3200 || !clock.ws_connected)
           {
-            //if (clock.clock.utc.show)
-            //  clock.setClock(0,"UTC",'UTC',0,clock.clock.utc.prefix,clock.clock.utc.show);
-            //if (clock.clock.cet.show)
-            //  clock.setClock(0,"MEZ",'UTC',0,clock.clock.cet.prefix,clock.clock.cet.show);
             for (ii in clocks)
               {
                 let cet_offset = ('offset' in clocks[ii])?clocks[ii].offset:0;
@@ -880,10 +1032,14 @@ WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
         sec = min%1;
         min = min-sec;
         sec = sec*60;
-        el.innerHTML = deg.toString() + '°' +
-                       min.toString() + "'" +
-                       sec.toFixed(0) + '" ' +
-                       dir;
+        let s = deg.toString() + '°' +
+                min.toString() + "'" +
+                sec.toFixed(0) + '" ' +
+                dir;
+        if (el.tagName.toUpperCase()=='INPUT')
+          el.value = s;
+        else
+          el.innerHTML = s;
       }
   }
 
