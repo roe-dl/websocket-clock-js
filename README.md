@@ -92,6 +92,7 @@ The element "show" describes what to be shown:
 * 5 - digital with date
 * 6 - analogous with date
 * 7 - both with date
+* 8 - Microsoft Excel time (can be or'ed with the other values)
 
 The element "prefix" needs to be set, if you have more than one
 clock on one page, only. Otherwise, the element can be omitted
@@ -174,10 +175,13 @@ ID | description
 `ptbHourHand` | direction of the hour hand
 `ptbMinuteHand` | direction of the minute hand
 `ptbSecondHand` | direction of the second hand
+`ptbExcelTimeZone` | timezone of the Microsoft Excel time 
+`ptbExcelTime` | Microsoft Excel time (based on local timezone)
 `JDUTC` | Julian Date (UTC)
 `MJDUTC` | Modified Julian Date (UTC)
 `DJDUTC` | Dublin Julian Day (UTC)
-`UnixEpoch` | UNIX epoch time (UTC)
+`UnixEpoch` | UNIX epoch time (based on UTC)
+`LabViewTime` | National Instrument's LabView time (based on UTC)
 
 ## Links
 

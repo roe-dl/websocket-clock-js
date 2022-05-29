@@ -698,6 +698,7 @@ function SolarTick(server,confs,milliseconds)
             if (offset==0)
               {
                 clock.set_value('UnixEpoch',(ts/1000.0).toFixed(0).toString());
+                clock.set_value('LabViewTime',(ts/1000+2082844800).toFixed(0).toString());
                 clock.set_julian_date('JDUTC',ts/86400000+2440587.5);
                 clock.set_julian_date('MJDUTC',ts/86400000+40587.0);
                 clock.set_julian_date('DJDUTC',ts/86400000+25567.5);
@@ -808,6 +809,12 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
           }
         if (ts>0)
           {
+            if (show&8)
+              {
+                // Excel time
+                this.set_value(prefix+'ExcelTimeZone',zone);
+                this.set_julian_date(prefix+'ExcelTime',ts/86400000+25569);
+              }
             if (show&4)
               {
                 // year
@@ -853,6 +860,12 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
         else
           {
             // reset clock
+            if (show&8)
+              {
+                // Excel time
+                this.set_value(prefix+'ExcelTimeZone',zone);
+                this.set_value(prefix+'ExcelTime','-------------');
+              }
             year=month=day=hour=minute=second=0;
             time_text = '--:--:--';
             date_text = this.iso_date?'----------':'--.--.----';
