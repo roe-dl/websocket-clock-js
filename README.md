@@ -151,6 +151,34 @@ For example, that kind of time was used in ancient Israel. So
 you find such time data in the Bible. The time was used until the
 middle ages. So the Prague city hall clock shows this time.
 
+## IDs
+
+If you set up a prefix other than `ptb`, replace "ptb" by the prefix
+you set up in configuration.
+
+ID | description
+---|-------------
+`clockLongitude` | longitude for the local time
+`ptbRelativeSecond` | length of the relative second in solar seconds
+`ptbFaceBackground` | background color of the clock face
+`ptbNotice` | connection state and error message
+`ptbTabDeviation` | deviation display area (used to switch display state)
+`ptbLinkDeviation` | button to switch on deviation display
+`ptbDeviationTitle` | tool tip for deviation display
+`ptbDeviation` | deviation display area (used to switch display state)
+`ptbOffset` | actual deviation text of the clock 
+`ptbAccuracy` | actual accuracy text
+`ptbDate` | date text
+`ptbTime` | digital time text
+`ptbLocalTimezone` | time zone in effect
+`ptbHourHand` | direction of the hour hand
+`ptbMinuteHand` | direction of the minute hand
+`ptbSecondHand` | direction of the second hand
+`JDUTC` | Julian Date (UTC)
+`MJDUTC` | Modified Julian Date (UTC)
+`DJDUTC` | Dublin Julian Day (UTC)
+`UnixEpoch` | UNIX epoch time (UTC)
+
 ## Links
 
 * [Example Page showing the possibilities](https://www.woellsdorf-wetter.de/clock/astronomy.html)

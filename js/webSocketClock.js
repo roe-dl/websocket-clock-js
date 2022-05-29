@@ -107,7 +107,7 @@ function WebSocketClock(server_url,config_dict)
     
     // configuration data
     this.clock = {
-      utc:  {show:0, prefix:'ptb'},
+      utc:  {show:0, prefix:'ptb', name:'UTC', offset:0, dst_name:''},
       cet:  {show:0, prefix:'ptb', name:'MEZ', offset:3600000, dst_name:'MESZ'},
       lmt:  {show:0, prefix:'ptb', name:'LMT', dst_name:''},
       gmst: {show:0, prefix:'ptb'},
@@ -139,6 +139,7 @@ function WebSocketClock(server_url,config_dict)
             this.clock.utc.show = ('show' in config_dict.UTC)?config_dict.UTC.show:7;
             if ('prefix' in config_dict.UTC) this.clock.utc.prefix=config_dict.UTC.prefix;
             this.clock.utc.name = 'UTC';
+            this.clock.utc.dst_name = '';
             this.clock.utc.offset = 0;
             this.solar.push(this.clock.utc);
           }
@@ -696,6 +697,7 @@ function SolarTick(server,confs,milliseconds)
             // TODO: condition
             if (offset==0)
               {
+                clock.set_value('UnixEpoch',(ts/1000.0).toFixed(0).toString());
                 clock.set_julian_date('JDUTC',ts/86400000+2440587.5);
                 clock.set_julian_date('MJDUTC',ts/86400000+40587.0);
                 clock.set_julian_date('DJDUTC',ts/86400000+25567.5);
