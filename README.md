@@ -15,6 +15,10 @@ server for that protocol. This repository provides a script that
 implements the client side of that protocol and controls clocks 
 for different time scales on a webpage. 
 
+This solution is GDPR complient. The server of the PTB is situated
+in the EU, and no data other than the local system time is 
+transmitted to the server. All calculation is done locally.
+
 ## What clocks can be displayed?
 
 The following clocks are available:
