@@ -136,7 +136,7 @@ Example: clock using roman numbers
 sudo bash -c "tools/createClockFace.py --html --scale-style=line --scale-color=#267488 --digit=r,16px >/var/www/html/uhr.html"
 ```
 
-<img src="roman-clock.png" />
+<img src="roman-clock-600.png" width="50%" />
 
 ## Relative Time
 
@@ -199,7 +199,7 @@ clock face replace the ID of the hour hand to `ptbHour24Hand`.
 To create such a clock face you can use `createClockFace.py`
 with the option `--24`
 
-<img src="24-hour-clock-600.png />
+<img src="24-hour-clock-600.png" width="50%" />
 
 It is also possible to have both a 24-hour hand and a 12-hour
 hand in the same clock for specially designed clock faces. 
