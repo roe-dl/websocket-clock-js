@@ -58,6 +58,12 @@ def main():
     sgroup.add_option("--scale-radius", dest='scaleradius', type=float, metavar="PERCENT",
                       default=None,
                       help="outside radius of the scale circle in percent of the clock diameter, default 50% for scale style 'line' and 46% for 'dot'")
+    sgroup.add_option("--digit", dest="digit", type=str, metavar="TYPE",
+                      default=None,
+                      help="include arabic or roman or no digits")
+    sgroup.add_option("--24", dest='twentyfour', action="store_true",
+                      default=False,
+                      help="24-hour-hand instead of 12-hour-hand")
     parser.add_option_group(sgroup)
     # parse arguments
     (options, args) = parser.parse_args()
@@ -73,6 +79,8 @@ def main():
         svg_options['scaleRadius'] = 50 if svg_options['scaleStyle']=='line' else 46
     else:
         svg_options['scaleRadius'] = options.scaleradius
+    svg_options['24hourHand'] = options.twentyfour
+    svg_options['digit'] = options.digit
     # start program
     if options.html:
         create_html(options.server,options.tz,svg_options)
@@ -81,6 +89,10 @@ def main():
     else:
         print("createCockFace.py --help to show usage instructions")
 
+
+ROMAN = ['XII','I','II','III','IV','V','VI','VII','VIII','IX','X','XI',
+         'XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX',
+         'XXI','XXII','XXIII','XIV']
 
 START_HTML='''<!DOCTYPE html>
 <html lang="de">
@@ -157,11 +169,11 @@ START_SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
 END_SVG = '''  </g>
 </svg>
 '''
-CLOCK_BACKGROUND = '    <circle id="ptbFaceBackground" cx="50%%" cy="50%%" r="50%%"" fill="%s" data-fill-connected="%s" data-fill-disconnected="%s"/>'
+CLOCK_BACKGROUND = '    <circle id="ptbFaceBackground" cx="50%%" cy="50%%" r="50%%"" fill="%s" data-fill-connected="%s" data-fill-disconnected="%s" />'
 CLOCK_MIN = '    <line x1="%.6f%%" y1="%.6f%%" x2="%.6f%%" y2="%.6f%%" stroke="%s" stroke-width="%s" />'
 CLOCK_AXIS = '    <circle cx="50%%" cy="50%%" r="5" fill="%s" />'
 HOUR_HAND = '''    <!-- hour hand - Stundenzeiger -->
-    <g id="ptbHourHand" transform="rotate(0,50%%,50%%)">
+    <g id="%s" transform="rotate(0,50%%,50%%)">
       <line x1="50%%" y1="50%%" x2="50%%" y2="20%%" stroke="%s" stroke-width="7" stroke-linecap="round" />
     </g>'''
 MINUTE_HAND = '''    <!-- minute hand - Minutenzeiger -->
@@ -183,6 +195,7 @@ CLOCK_DIGITAL = '''    <!-- digital -->
 
 def create_svg(svg_options):
     print(START_SVG)
+    prefix = svg_options.get('prefix','ptb')
     try:
         bc = svg_options['backgroundColor']
         bc[2]
@@ -196,8 +209,17 @@ def create_svg(svg_options):
         sc = svg_options['scaleColor']
     except Exception:
         sc = '#404040'
+    # 12-hour hand or 24-hour hand
+    h24 = svg_options.get('24hourHand',False)
+    if h24:
+        hourhand_id = prefix+'Hour24Hand'
+    else:
+        hourhand_id = prefix+'HourHand'
+    # clock face background
     print(CLOCK_BACKGROUND % (bc[0],bc[1],bc[2]))
+    # hand axis
     print(CLOCK_AXIS % hc)
+    # hour and minute marks
     if ('hScale' in svg_options or 'mScale' in svg_options):
         r = svg_options['scaleRadius'] # percent of the viewBox
         try:
@@ -206,9 +228,9 @@ def create_svg(svg_options):
             sty = 'line'
         for i in range(0,60):
             a = i/30*math.pi
-            if (i%5)==0 and 'hScale' in svg_options:
+            if (i%5)==0 and 'hScale' in svg_options and not h24:
                 # hour
-                l = 11 if 'mScale' in svg_options else 5
+                l = 9 if 'mScale' in svg_options else 5
                 b = 5
             elif 'mScale' in svg_options:
                 # minute
@@ -222,19 +244,55 @@ def create_svg(svg_options):
                     print(CLOCK_MIN % (50+(r-l)*math.cos(a),50+(r-l)*math.sin(a),50+r*math.cos(a),50+r*math.sin(a),sc,b))
                 elif sty=='dot':
                     print('<circle cx="%.6f%%" cy="%.6f%%" r="%s" fill="%s" />' % (50+r*math.cos(a),50+r*math.sin(a),b/2,sc))
+        if h24 and 'hScale' in svg_options:
+            # 24 hour dots
+            r2 = 34
+            b = 5 if 'digit' in svg_options else 8
+            l = 3
+            for i in range(0,24):
+                a = i/12*math.pi
+                #print('<circle cx="50%%" cy="50%%" r="%s%%" stroke="%s" fill="none" />' % (r2,sc))
+                #if sty=='line':
+                #    print(CLOCK_MIN % (50+(r2-l/2)*math.cos(a),50+(r2-l/2)*math.sin(a),50+(r2+l/2)*math.cos(a),50+(r2+l/2)*math.sin(a),sc,b))
+                #elif sty=='dot':
+                print('<circle cx="%.6f%%" cy="%.6f%%" r="%s" fill="%s" />' % (50+r2*math.cos(a),50+r2*math.sin(a),b/2,sc))
+    # text
+    if svg_options.get('digit',None):
+        text_options = svg_options.get('digit','a').split(',')
+        typ = text_options[0][:1]
+        if len(text_options)>1:
+            text_size = text_options[1] 
+        else:
+            text_size = '12px' if h24 else '20px'
+        print('<g text-anchor="middle" font-size="%s" style="fill:%s;stroke:none">' % (text_size,sc))
+        if h24:
+            r = 39
+            m = 24
+        else:
+            r = 35 if sty=='line' else 39
+            m = 12
+        for i in range(1,m+1):
+            a = i/m*math.pi*2
+            #print('<circle cx="%.6f%%" cy="%.6f%%" r="3" />' % (50+r*math.sin(a),50-r*math.cos(a)))
+            txt = ROMAN[i] if typ=='r' else str(i)
+            print('<text x="%.6f%%" y="%.6f%%" dy="0.35em">%s</text>' % (50+r*math.sin(a),50-r*math.cos(a),txt))
+        print('</g>')
+    # digital display
     print(CLOCK_DIGITAL % sc)
+    # status and deviation
     print('''    <text id="ptbNotice" x="50%" y="69.5%" text-anchor="middle" font-weight="bold" font-size="9px" fill="black"></text>''')
     print('''    <!-- deviation -->
     <g id="ptbTabDeviation" class="ptbAct" style="cursor:pointer;" aria-labelledby="ptbDeviationTitle" role="button" tabindex="2"><title id="ptbDeviationTitle">Abweichung der lokalen Geräte-Uhr anzeigen</title>
      <text id="ptbLinkDeviation" text-anchor="middle" x="50%%" y="75%%" style="display:none;fill:%s;stroke:none;font-weight:bold;font-size:14px;">&Delta;t</text>
      <g id="ptbDeviation" text-anchor="middle" letter-spacing="-0.2" style="display:none;fill:%s;stroke:none;">
       <text x="50%%" y="73%%" font-size="9px">Die lokale Uhr geht
-       <tspan x="50%%" y="77.5%%" id="ptbOffset"/> <tspan id="ptbAccuracy" dx="3" font-size="8px"/>
+       <tspan x="50%%" y="77.5%%" id="ptbOffset" /> <tspan id="ptbAccuracy" dx="3" font-size="8px" />
       </text>
      </g>
     </g>
 ''' % (sc,sc))
-    print(HOUR_HAND % hc)
+    # clock hands
+    print(HOUR_HAND % (hourhand_id,hc))
     print(MINUTE_HAND % hc)
     print(SECOND_HAND)
     print(END_SVG)
@@ -245,6 +303,8 @@ def create_html(server,tz,svg_options):
         x = "offset:" + tz[1]
     else:
         x = ""
+    if svg_options.get('24hourHand',False):
+        x = ",".join(["show:21",x]) 
     print(START_HTML % (tz[0],x,server))
     create_svg(svg_options)
     print(END_HTML)

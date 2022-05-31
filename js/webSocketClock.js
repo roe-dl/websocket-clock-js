@@ -535,7 +535,7 @@ function RelativeTick(server,confs,url)
             x = ts-start_ts;
         
             // time to wait to the next tick
-            t = isNaN(rel_sec)?500:(rel_sec-x%rel_sec);
+            t = (rel_sec===undefined||isNaN(rel_sec)||rel_sec<100)?500:(rel_sec-x%rel_sec);
             if (t<10) t += rel_sec;
           }
         else
@@ -563,14 +563,18 @@ function RelativeTick(server,confs,url)
 
         if (initialize)
           {
+            let rel_sec_text = isNaN(rel_sec)?'---':(rel_sec/1000).toFixed(3).toString().replace('.',',');
+            clock.set_value(clocks[0].prefix+'RelativeSecond',rel_sec_text);
+            /*
             el = document.getElementById(clocks[0].prefix+'RelativeSecond');
             if (el)
               {
                 if (isNaN(rel_sec))
                   el.innerHTML = '---';
                 else
-                  el.innerHTML = (rel_sec/1000).toFixed(3).toString().replace('.',',')+'s';
+                  el.innerHTML = (rel_sec/1000).toFixed(3).toString().replace('.',',');
               }
+            */
           }
           
         if (clocks[0].show&1)
@@ -581,10 +585,19 @@ function RelativeTick(server,confs,url)
           }
         if (clocks[0].show&2)
           {
-            // analogous time
+            // analogous time, 12 hour hand
             clock.set_hand(clocks[0].prefix+'HourHand',(hour%12.0)/12.0+minute/720.0);
+          }
+        if (clocks[0].show&18)
+          {
+            // analogous time, minute and second hand
             clock.set_hand(clocks[0].prefix+'MinuteHand',minute/60.0);
             clock.set_hand(clocks[0].prefix+'SecondHand',second/60.0);
+          }
+        if (clocks[0].show&16)
+          {
+            // analogous time, 24h hand
+            clock.set_hand(clocks[0].prefix+'Hour24Hand',x/86400);
           }
 
         // remember last timestamp
@@ -884,10 +897,19 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
           }
         if (show&2)
           {
-            // analogous time
+            // analogous time, 12 hour hand
             this.set_hand(prefix+'HourHand',(hour%12.0)/12.0+minute/720.0);
+          }
+        if (show&18)
+          {
+            // analogous time, minute and second hand
             this.set_hand(prefix+'MinuteHand',minute/60.0);
             this.set_hand(prefix+'SecondHand',second/60.0);
+          }
+        if (show&16)
+          {
+            // analogous time, 24h hand
+            this.set_hand(prefix+'Hour24Hand',ts/86400);
           }
   }
       

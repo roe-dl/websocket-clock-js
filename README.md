@@ -131,6 +131,13 @@ createClockFace.py --help
 to see the available options. After you saved the resulting output
 to a file, you can further style the clock face.
 
+Example: clock using roman numbers
+```
+sudo bash -c "tools/createClockFace.py --html --scale-style=line --scale-color=#267488 --digit=r,16px >/var/www/html/uhr.html"
+```
+
+<img src="roman-clock.png" />
+
 ## Relative Time
 
 In ancient times people divided both the light day and the night
@@ -172,6 +179,7 @@ ID | description
 `ptbDate` | date text
 `ptbTime` | digital time text
 `ptbLocalTimezone` | time zone in effect
+`ptbHour24Hand` | direction of a hand with 1 turn in 24 hours
 `ptbHourHand` | direction of the hour hand
 `ptbMinuteHand` | direction of the minute hand
 `ptbSecondHand` | direction of the second hand
@@ -182,6 +190,22 @@ ID | description
 `DJDUTC` | Dublin Julian Day (UTC)
 `UnixEpoch` | UNIX epoch time (based on UTC)
 `LabViewTime` | National Instrument's LabView time (based on UTC)
+
+## 24 Hour Clock
+
+You can also create a clock with its hour hand turning once in a
+day only. To do so set `show` to 21 in the configuration. In the
+clock face replace the ID of the hour hand to `ptbHour24Hand`.
+To create such a clock face you can use `createClockFace.py`
+with the option `--24`
+
+<img src="24-hour-clock-600.png />
+
+It is also possible to have both a 24-hour hand and a 12-hour
+hand in the same clock for specially designed clock faces. 
+The option `show` is 22 in that case. An example would be
+an additional sun symbol turning around during the day while
+the normal hour hand shows the time.
 
 ## Links
 
