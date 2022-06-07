@@ -282,7 +282,7 @@ def create_svg(svg_options):
     # status and deviation
     print('''    <text id="ptbNotice" x="50%" y="69.5%" text-anchor="middle" font-weight="bold" font-size="9px" fill="black"></text>''')
     print('''    <!-- deviation -->
-    <g id="ptbTabDeviation" class="ptbAct" style="cursor:pointer;" aria-labelledby="ptbDeviationTitle" role="button" tabindex="2"><title id="ptbDeviationTitle">Abweichung der lokalen Geräte-Uhr anzeigen</title>
+    <g id="ptbTabDeviation" class="ptbAct" style="cursor:pointer;" aria-labelledby="ptbDeviationTitle" role="button" tabindex="2"><title id="ptbDeviationTitle">Abweichung der lokalen Ger&auml;te-Uhr anzeigen</title>
      <text id="ptbLinkDeviation" text-anchor="middle" x="50%%" y="75%%" style="display:none;fill:%s;stroke:none;font-weight:bold;font-size:14px;">&Delta;t</text>
      <g id="ptbDeviation" text-anchor="middle" letter-spacing="-0.2" style="display:none;fill:%s;stroke:none;">
       <text x="50%%" y="73%%" font-size="9px">Die lokale Uhr geht

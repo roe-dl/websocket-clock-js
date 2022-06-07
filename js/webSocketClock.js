@@ -32,6 +32,7 @@
         conf = {
           iso_date:false,             // date format
           longitude:13.040,           // longitude of the location
+          latitude:54.321,            // latitude of the location
           UTC:{show:0,prefix:'ptb'},
           CET:{show:0,prefix:'ptb',name:'MEZ',offset:3600000,dst_name:'MESZ'},
           tz:{show:0,prefix:'ptb',name:'...',offset:...,dst_name:'...'},
@@ -112,7 +113,7 @@ function WebSocketClock(server_url,config_dict)
       lmt:  {show:0, prefix:'ptb', name:'LMT', dst_name:''},
       gmst: {show:0, prefix:'ptb'},
       lmst: {show:0, prefix:'ptb'},
-      relative: {show:0, prefix:'ptb', name:'Temporalzeit', dst_name:''}
+      relative: {show:0, prefix:'ptb', name:'Temporalzeit', dst_name:'', lat:NaN, lon:NaN}
     };
     this.sidereal = Array();
     this.sidereallocal = Array();
@@ -123,21 +124,34 @@ function WebSocketClock(server_url,config_dict)
 
     // read configuration    
     if ('longitude' in config_dict) 
-      this.lmtoffsetutc = config_dict.longitude*240000;
+      {
+        // Longitude is included in configuration, so use it, and latitude
+        // as well if provided
+        this.lmtoffsetutc = config_dict.longitude*240000;
+        this.clock.relative.lon = config_dict.longitude;
+        if ('latitude' in config_dict)
+          this.clock.relative.lat = config_dict.latitude;
+      }
     else if (navigator.geolocation)
-      navigator.geolocation.getCurrentPosition(function(pos){this.lmtoffsetutc=pos.coords.longitude*240000;
-                        this.set_degree('clockLongitude',this.lmtoffsetutc/240000,['O','W']);});
+      {
+        // Try to get the current geographic position of the user
+        navigator.geolocation.getCurrentPosition(function(pos){
+          this.lmtoffsetutc=pos.coords.longitude*240000;
+          this.set_degree('clockLongitude',this.lmtoffsetutc/240000,['O','W']);
+          this.clock.relative.lon = pos.coords.longitude;
+          this.clock.relatvie.lat = pos.coords.latitude;});
+      }
     for (ii in config_dict)
       {
         if (ii == 'iso_date') 
           this.iso_date = config_dict[ii];
         else if (ii == 'longitude' || ii == 'latitude' || ii.substring(0,4)=='text') 
           {}
-        else if (ii == 'UTC')
+        else if (ii == 'UTC' || ii == 'GMT')
           {
             // UTC
-            this.clock.utc.show = ('show' in config_dict.UTC)?config_dict.UTC.show:7;
-            if ('prefix' in config_dict.UTC) this.clock.utc.prefix=config_dict.UTC.prefix;
+            this.clock.utc.show = ('show' in config_dict[ii])?config_dict[ii].show:7;
+            if ('prefix' in config_dict[ii]) this.clock.utc.prefix=config_dict[ii].prefix;
             this.clock.utc.name = 'UTC';
             this.clock.utc.dst_name = '';
             this.clock.utc.offset = 0;
@@ -479,6 +493,7 @@ function RelativeTick(server,confs,url)
             { 
               for (ii in data) data[ii]*=1000;
               sun.sun = data; 
+              idx = 0;
               t = 3600000; 
             })
           .catch(function(error) 
@@ -490,6 +505,10 @@ function RelativeTick(server,confs,url)
             {
               console.log('sun.sun',sun.sun,t); 
               sun.fetch_timeout_id = setTimeout(fetch_sunset_sunrise,t);
+              if (!isNaN(clocks[0].lon))
+                clock.set_degree('clockLongitude',clocks[0].lon,['O','W']);
+              if (!isNaN(clocks[0].lat))
+                clock.set_degree('clockLatitude',clocks[0].lat,['N','S']);
             });
       }
       
@@ -565,16 +584,6 @@ function RelativeTick(server,confs,url)
           {
             let rel_sec_text = isNaN(rel_sec)?'---':(rel_sec/1000).toFixed(3).toString().replace('.',',');
             clock.set_value(clocks[0].prefix+'RelativeSecond',rel_sec_text);
-            /*
-            el = document.getElementById(clocks[0].prefix+'RelativeSecond');
-            if (el)
-              {
-                if (isNaN(rel_sec))
-                  el.innerHTML = '---';
-                else
-                  el.innerHTML = (rel_sec/1000).toFixed(3).toString().replace('.',',');
-              }
-            */
           }
           
         if (clocks[0].show&1)
@@ -1069,7 +1078,7 @@ WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
         sec = min%1;
         min = min-sec;
         sec = sec*60;
-        let s = deg.toString() + '°' +
+        let s = deg.toString() + '&deg;' +
                 min.toString() + "'" +
                 sec.toFixed(0) + '" ' +
                 dir;
