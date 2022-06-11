@@ -159,7 +159,7 @@ function WebSocketClock(server_url,config_dict)
         else if (ii == 'UTC' || ii == 'GMT')
           {
             // UTC
-            this.clock.utc.show = ('show' in config_dict[ii])?config_dict[ii].show:7;
+            this.clock.utc.show = ('show' in config_dict[ii])?config_dict[ii].show:7+32;
             if ('prefix' in config_dict[ii]) this.clock.utc.prefix=config_dict[ii].prefix;
             this.clock.utc.name = 'UTC';
             this.clock.utc.dst_name = '';
@@ -169,7 +169,7 @@ function WebSocketClock(server_url,config_dict)
         else if (ii == 'CET' || ii == 'MEZ')
           {
             // Central European Time
-            this.clock.cet.show = ('show' in config_dict.CET)?config_dict.CET.show:7;
+            this.clock.cet.show = ('show' in config_dict.CET)?config_dict.CET.show:7+32;
             if ('prefix' in config_dict.CET) this.clock.cet.prefix=config_dict.CET.prefix;
             if ('name' in config_dict.CET) this.clock.cet.name=config_dict.CET.name;
             if ('dst_name' in config_dict.CET) this.clock.cet.dst_name=config_dict.CET.dst_name;
@@ -189,7 +189,7 @@ function WebSocketClock(server_url,config_dict)
         else if (ii == 'LMT')
           {
             // Local Mean Time
-            this.clock.lmt.show = ('show' in config_dict.LMT)?config_dict.LMT.show:7;
+            this.clock.lmt.show = ('show' in config_dict.LMT)?config_dict.LMT.show:7+32;
             if ('prefix' in config_dict.LMT) this.clock.lmt.prefix=config_dict.LMT.prefix;
             this.solarlocal.push(this.clock.lmt);
           }

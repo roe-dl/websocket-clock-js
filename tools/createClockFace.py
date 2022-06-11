@@ -181,17 +181,30 @@ MINUTE_HAND = '''    <!-- minute hand - Minutenzeiger -->
       <line x1="50%%" y1="50%%" x2="50%%" y2="9%%" stroke="%s" stroke-width="5" stroke-linecap="round" />
     </g>'''
 SECOND_HAND = '''    <!-- second hand - Sekundenzeiger -->
-    <g id="ptbSecondHand" transform="rotate(0,50%,50%)">
-      <line x1="50%" y1="50%" x2="50%" y2="5%" stroke="red" stroke-width="2" stroke-linecap="round" />
-      <circle cx="50%" cy="50%" r="2" fill="red" />
+    <g id="ptbSecondHand" transform="rotate(0,50%%,50%%)">
+      <line x1="50%%" y1="50%%" x2="50%%" y2="5%%" stroke="%s" stroke-width="2" stroke-linecap="round" />
+      <circle cx="50%%" cy="50%%" r="2" fill="red" />
     </g>'''
 CLOCK_DIGITAL = '''    <!-- digital -->
     <g id="ptbSwitchClock" text-anchor="middle"  letter-spacing="-0.2" font-size="8px" style="fill:%s;stroke:none;cursor:pointer;">
-     <text x="50%%" y="24.5%%" id="ptbDate"></text>
-     <text x="50%%" y="32%%" id="ptbTime" font-size="16px" font-weight="bold"></text>
-     <text x="50%%" y="37%%" id="ptbLocalTimezone"></text>
+     <text x="50%%" y="%s%%" id="ptbWeekday"></text>
+     <text x="50%%" y="%s%%" id="ptbDate"></text>
+     <text x="50%%" y="%s%%" id="ptbTime" font-size="16px" font-weight="bold"></text>
+     <text x="50%%" y="%s%%" id="ptbLocalTimezone"></text>
     </g>
  '''
+SHADOW_DEF = '''    <!-- shadow definition -->
+      <filter id="shadow%s">
+        <feDropShadow dx="0" dy="0" stdDeviation="%s" />
+      </filter>
+'''
+#SHADOW_DEF = '''    <!-- shadow definition -->
+#      <filter id="shadow%s">
+#        <feOffset result="offOut" in="SourceAlpha" dx="2" dy="2" />
+#        <feGaussianBlur result="blurOut" in="offOut" stdDeviation="%s" />
+#        <feBlend in="SourceGraphic" in2="blurOut" mode="normal" />
+#      </filter>
+#'''
 
 def create_svg(svg_options):
     print(START_SVG)
@@ -215,6 +228,16 @@ def create_svg(svg_options):
         hourhand_id = prefix+'Hour24Hand'
     else:
         hourhand_id = prefix+'HourHand'
+    hshadow = False
+    mshadow = False
+    sshadow = False
+    # filter definitions
+    if hshadow or mshadow:
+        print('  <defs>')
+        if hshadow: print(SHADOW_DEF % ('Hour',1))
+        if mshadow: print(SHADOW_DEF % ('Minute',1))
+        if sshadow: print(SHADOW_DEF % ('Second',1))
+        print('  </defs>')
     # clock face background
     print(CLOCK_BACKGROUND % (bc[0],bc[1],bc[2]))
     # hand axis
@@ -278,7 +301,14 @@ def create_svg(svg_options):
             print('<text x="%.6f%%" y="%.6f%%" dy="0.35em">%s</text>' % (50+r*math.sin(a),50-r*math.cos(a),txt))
         print('</g>')
     # digital display
-    print(CLOCK_DIGITAL % sc)
+    if svg_options.get('digit',None):
+        if sty=='line':
+            x = (sc,25,29.5,37,42)
+        else:
+            x = (sc,22,26.5,34,39)
+    else:
+        x = (sc,20,24.5,32,37)
+    print(CLOCK_DIGITAL % x)
     # status and deviation
     print('''    <text id="ptbNotice" x="50%" y="69.5%" text-anchor="middle" font-weight="bold" font-size="9px" fill="black"></text>''')
     print('''    <!-- deviation -->
@@ -292,9 +322,15 @@ def create_svg(svg_options):
     </g>
 ''' % (sc,sc))
     # clock hands
+    if hshadow: print('<g filter="url(#shadowHour)">')
     print(HOUR_HAND % (hourhand_id,hc))
+    if hshadow: print('</g>')
+    if mshadow: print('<g filter="url(#shadowMinute)">')
     print(MINUTE_HAND % hc)
-    print(SECOND_HAND)
+    if mshadow: print('</g>')
+    if sshadow: print('<g filter="url(#shadowSecond)">')
+    print(SECOND_HAND % 'red')
+    if sshadow: print('</g>')
     print(END_SVG)
 
 def create_html(server,tz,svg_options):
