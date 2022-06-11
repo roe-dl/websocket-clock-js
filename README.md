@@ -222,6 +222,9 @@ conf = {cet:{show:7+32}};
 Within the clock face you need a text element with the ID
 `ptbWeekday`. "ptb" has to replaced by the prefix you set, if any.
 
+* in HTML: `<span id="ptbWeekday"></span>`
+* in SVG: `<text x="..." y="..." id="ptbWeekday"></text>`
+
 The weekday is displayed according to the language setting of
 the user's browser. This is done by using the Javascript function
 `toLocaleString()` for all languages except german. The german
