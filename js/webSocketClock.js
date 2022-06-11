@@ -52,14 +52,22 @@
     requirements.
     
     element "show":
-    * 0 - nothing is shown
-    * 1 - digital without date
-    * 2 - analagous without date
-    * 3 - both without date
-    * 4 - date only
-    * 5 - digital with date
-    * 6 - analogous with date
-    * 7 - both with date
+    * 0   - nothing is shown
+    * 1   - digital without date
+    * 2   - analagous without date
+    * 3   - both without date
+    * 4   - date only
+    * 5   - digital with date
+    * 6   - analogous with date
+    * 7   - both with date
+    * 16  - analogous 24 hour clock without date
+    * 17  - both digital and analogous 24 hour clock without date
+    * 20  - analogous 24 hour clock with date
+    * 21  - both digital and analogous 24 hour clock with date
+    values to be added to the previous values:
+    * +8  - Excel time
+    * +32 - full weekday name
+    * +64 - abbreviated weekday name
     
     IDs of the HTML elements:
     - prefix+'Date'          : date text
@@ -92,6 +100,7 @@ function WebSocketClock(server_url,config_dict)
     this.iso_date = false;
     this.lmtoffsetutc = 3129600;
     this.sun = Array();
+    this.weekdays = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Sonnabend'];
     
     // web socket
     var time_ws;
@@ -210,13 +219,18 @@ function WebSocketClock(server_url,config_dict)
           }
         else
           {
+            // other time zones like WET, EET
+            let TZNS = {
+                wet:['WET','WEST',0],
+                eet:['EET','EEST',7200000]};
             let tz = ii.toLowerCase();
-            this.clock[tz] = {};
-            this.clock[tz].show = ('show' in config_dict[ii])?config_dict[ii].show:7;
-            this.clock[tz].prefix = ('prefix' in config_dict[ii])?config_dict[ii].prefix:'ptb';
-            this.clock[tz].name = ('name' in config_dict[ii])?config_dict[ii].name:ii;
-            this.clock[tz].dst_name = ('dst_name' in config_dict[ii])?config_dict[ii].dst_name:'';
-            this.clock[tz].offset = config_dict[ii].offset;
+            let tzn = (tz in TZNS)?TZNS[tz]:[ii,'',config_dict[ii].offset];
+            this.clock[tz] = {
+                show:('show' in config_dict[ii])?config_dict[ii].show:7,
+                prefix:('prefix' in config_dict[ii])?config_dict[ii].prefix:'ptb',
+                name:('name' in config_dict[ii])?config_dict[ii].name:tzn[0],
+                dst_name:('dst_name' in config_dict[ii])?config_dict[ii].dst_name:tzn[1],
+                offset:('offset' in config_dict[ii])?config_dict[ii].offset:tzn[2]};
             if ((this.clock[tz].offset%1000)==0)
               this.solar.push(this.clock[tz]);
             else
@@ -739,7 +753,7 @@ function SolarTick(server,confs,milliseconds)
 WebSocketClock.prototype.valueOf = function()
   {
     if (this.ws_connected)
-      return performance.now()-this.time_delta  
+      return performance.now()-this.time_delta;
     return NaN;
   }
   
@@ -756,7 +770,9 @@ WebSocketClock.prototype.sidereal_time = function sidereal_time(utc)
     return GMST;
   }
 
-// check if daylight savings time applies      
+// check if daylight savings time applies 
+// (according to the rule of the European Union since 1996, valid also
+// in Switzerland, UK, and some other countries)
 WebSocketClock.prototype.is_dst = function is_dst(utc_ts)
       {
         // works from 1970 up to 2099
@@ -817,7 +833,7 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
           {
             // other time zone
             x = offset/1000.0;
-            if (x>=0.0) sign='+'; else sign='-',x=-x;
+            if (x>=0.0) sign='&plus;'; else sign='&minus;',x=-x;
             second = x%60;
             x = (x-second)/60;
             minute = x%60;
@@ -868,6 +884,35 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
                               (month<10?'0':'') + month.toString() + '.' +
                               year.toString();
               }
+            if (show&96)
+              {
+                // full (32) or abbreviated (64) weekday name 
+                try
+                  {
+                    if (navigator.language==null||
+                        navigator.language==''||
+                        navigator.language.toLowerCase()=='de'||
+                        navigator.language.toLowerCase().slice(0,3)=='de-')
+                      {
+                        weekday = Math.floor(ts/86400000+4)%7;
+                        weekday_text = this.weekdays[weekday];
+                        if ((show&96)==64)
+                          {
+                            weekday_text = weekday_text.slice(0,2);
+                            if (weekday==6) weekday_text = 'Sa';
+                          }
+                      }
+                    else
+                      {
+                        dt = new Date(ts);
+                        weekday_text = dt.toLocaleString(navigator.language,{timeZone:'UTC',weekday:(show&32)?'long':'short'});
+                      }
+                  }
+                catch (error)
+                  {
+                    weekday_text = '--';
+                  }
+              }
             // time
             ts = Math.round(ts/1000.0)%86400;
             second = ts%60;
@@ -891,12 +936,18 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
             year=month=day=hour=minute=second=0;
             time_text = '--:--:--';
             date_text = this.iso_date?'----------':'--.--.----';
+            weekday_text = '--';
             console.log("reset clock",zone);
           }
         if (show&4)
           {
             // date
             this.set_value(prefix+'Date',date_text);
+          }
+        if (show&96)
+          {
+            // weekday name
+            this.set_value(prefix+'Weekday',weekday_text);
           }
         if (show&1)
           {
@@ -927,20 +978,30 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
 // is created
 WebSocketClock.prototype.set_value = function set_value(id,text)
   {
-    el = document.getElementById(id);
+    let el = document.getElementById(id);
     if (el) el.innerHTML = text;
   }
       
 // set clock hand direction
+// Please note: Percent coordinates do not work with rotate()
 WebSocketClock.prototype.set_hand = function set_hand(id,angle)
   {
-    //console.log(id,angle);
     angle*=360;
-    el = document.getElementById(id);
-    if (el) el.setAttribute('transform','rotate('+angle.toString()+',100,100)');
-    //if (el) el.setAttribute('transform','rotate('+angle.toString()+')');
+    let el = document.getElementById(id);
+    if (el) 
+      {
+        let at = el.getAttribute('transform');
+        if (at==null) at = "";
+        let idx1 = at.indexOf('rotate(');
+        let idx2 = at.indexOf(',',idx1);
+        if (idx1<0||idx2<idx1||at.indexOf('%')>=0) at = 'rotate(0,100,100)',idx1=0,idx2=8;
+        //console.log('transform',at,idx1,idx2,at.slice(0,idx1+7),at.slice(idx2));
+        el.setAttribute('transform',at.slice(0,idx1+7)+angle.toString()+at.slice(idx2));
+        //el.setAttribute('transform','rotate('+angle.toString()+',100,100)');
+        //el.setAttribute('transform','rotate('+angle.toString()+')');
+      }
   }
-      
+
 // show connection error
 WebSocketClock.prototype.set_conn_state = function (state)
   {
@@ -967,7 +1028,7 @@ WebSocketClock.prototype.set_conn_state = function (state)
                 el = document.getElementById(prefix+'Notice');
                 if (el)
                   {
-                    el2 = document.getElementById(prefix+'TabDeviation');
+                    let el2 = document.getElementById(prefix+'TabDeviation');
                     if (state=='connected')
                       {
                         // no connection state message is displayed
@@ -1067,7 +1128,7 @@ WebSocketClock.prototype.set_deviation = function set_deviation()
 // Angle as degree, minute, second
 WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
   {
-    el = document.getElementById(id);
+    let el = document.getElementById(id);
     if (el)
       {
         let dir = angle<0?sign_symbol[1]:sign_symbol[0];
@@ -1079,8 +1140,8 @@ WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
         min = min-sec;
         sec = sec*60;
         let s = deg.toString() + '&deg;' +
-                min.toString() + "'" +
-                sec.toFixed(0) + '" ' +
+                min.toString() + "&prime;" +
+                sec.toFixed(0) + '&Prime; ' +
                 dir;
         if (el.tagName.toUpperCase()=='INPUT')
           el.value = s;
@@ -1092,7 +1153,7 @@ WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
 // Julian Date
 WebSocketClock.prototype.set_julian_date = function set_julian_date(id,value)
   {
-    el = document.getElementById(id);
+    let el = document.getElementById(id);
     if (el)
       {
         el.innerHTML = value.toFixed(5).toString().replace('.',',');

@@ -96,7 +96,16 @@ The element "show" describes what to be shown:
 * 5 - digital with date
 * 6 - analogous with date
 * 7 - both with date
-* 8 - Microsoft Excel time (can be or'ed with the other values)
+* 16  - analogous 24 hour clock without date
+* 17  - both digital and analogous 24 hour clock without date
+* 20  - analogous 24 hour clock with date
+* 21  - both digital and analogous 24 hour clock with date
+
+values that can be or'ed or added with the other values:
+
+* 8 - Microsoft Excel time
+* 32 - full weekday name
+* 64 - abbreviated weekday name
 
 The element "prefix" needs to be set, if you have more than one
 clock on one page, only. Otherwise, the element can be omitted
@@ -181,6 +190,7 @@ ID | description
 `ptbOffset` | actual deviation text of the clock 
 `ptbAccuracy` | actual accuracy text
 `ptbDate` | date text
+`ptbWeekday` | weekday text
 `ptbTime` | digital time text
 `ptbLocalTimezone` | time zone in effect
 `ptbHour24Hand` | direction of a hand with 1 turn in 24 hours
@@ -194,6 +204,30 @@ ID | description
 `DJDUTC` | Dublin Julian Day (UTC)
 `UnixEpoch` | UNIX epoch time (based on UTC)
 `LabViewTime` | National Instrument's LabView time (based on UTC)
+
+## Weekday
+
+To display the weekday the following values can be or'ed or added
+to the values in the `show` element:
+
+* +32 - full weekday name
+* +64 - abbreviated weekday name
+
+example configuration:
+
+```
+conf = {cet:{show:7+32}};
+```
+
+Within the clock face you need a text element with the ID
+`ptbWeekday`. "ptb" has to replaced by the prefix you set, if any.
+
+The weekday is displayed according to the language setting of
+the user's browser. This is done by using the Javascript function
+`toLocaleString()` for all languages except german. The german
+weekday names are set in the element `weekdays` of `WebSocketClock`
+and can be changed there if necessary (for example if you want
+to set it to some dialect form).
 
 ## 24 Hour Clock
 
