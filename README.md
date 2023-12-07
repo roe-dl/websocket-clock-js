@@ -32,6 +32,7 @@ The following clocks are available:
 * Modified Julian Date (digital only)
 * Dublin Julian Day (digital only)
 * Relative Time (additional data needed)
+* Countdown clock
 
 Additionally:
 
@@ -278,6 +279,29 @@ und
 <span id="ptbCountdownSeconds"></span>
 <span id="ptbCountdownSecondsLabel" clocklabel1="Sekunde" clocklabeln="Sekunden">Sekunden</span>
 ```
+
+Czech HTML example (Český příklad):
+```HTML
+<span id="ptbCountdownDays"></span>
+<span id="ptbCountdownDaysLabel" clocklabel1="den" clocklabel2="dny" clocklabeln="dní">dní</span>,
+<span id="ptbCountdownHours"></span>
+<span id="ptbCountdownHoursLabel" clocklabel1="hodina" clocklabel2="hodiny" clocklabeln="hodin">hodin</span>,
+<span id="ptbCountdownMinutes"></span>
+<span id="ptbCountdownMinutesLabel" clocklabel1="minuta" clocklabel2="minuty" clocklabeln="minut">minut</span>
+a
+<span id="ptbCountdownSeconds"></span>
+<span id="ptbCountdownSecondsLabel" clocklabel1="sekunda" clocklabel2="sekundy" clocklabeln="sekund">sekund</span>
+```
+
+Note: In czech there is not only singular and plural, but another ending
+for 2, 3, and 4. 
+
+Labels:
+* `clocklabel1`: label if the value is 1
+* `clocklabel2`: label if the value is 2, 3, or 4
+* `clocklabeln`: label if the value is from 5 on or 0
+
+If `clocklabel2` is missing, `clocklabeln` is used for 2, 3, and 4, too.
 
 ## Links
 

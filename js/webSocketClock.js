@@ -1218,7 +1218,7 @@ WebSocketClock.prototype.set_countdown = function set_countdown(id,value)
         if (el)
           {
             let attr = el.getAttribute('clocklabel'+(x[1]!=1?'n':'1'));
-            if (x[1]==2)
+            if (x[1]>=2&&x[1]<=4)
               {
                 at = el.getAttribute('clocklabel2');
                 if (at!=null) attr = at;
