@@ -1,5 +1,5 @@
 // Using the Websocket subprotocol time to drive a web clock
-// Copyright (C) 2021, 2022 Johanna Roedenbeck
+// Copyright (C) 2021, 2022, 2023 Johanna Roedenbeck
 
 /*
     This script is free software: you can redistribute it and/or modify
@@ -20,6 +20,7 @@
     - local mean time
     - sidereal time (local and Greenwich)
     - relative time (additional data needed)
+    - countdown
     
     Usage:
     
@@ -39,7 +40,8 @@
           LMT:{show:0,prefix:'ptb',name:'LMT'},
           GMST:{show:0,prefix:'ptb'},
           LMST:{show:0,prefix:'ptb'},
-          rel:{show:0,prefix:'ptb',url:'...'}
+          rel:{show:0,prefix:'ptb',url:'...'},
+          countdown:{end:12345678}
         }
         clock = new WebSocketClock(server_url,conf); }
     </script>
@@ -70,14 +72,23 @@
     * +64 - abbreviated weekday name
     
     IDs of the HTML elements:
-    - prefix+'Date'          : date text
-    - prefix+'Time'          : time text
-    - prefix+'LocalTimezone' : timezone text
-    - prefix+'HourHand'      : direction of hour hand
-    - prefix+'MinuteHand'    : direction of minute hand
-    - prefix+'SecondHand'    : direction of second hand
-    - prefix+'FaceBackground': background color
-    - prefix+'Notice'        : connection error message
+    - prefix+'Date'            : date text
+    - prefix+'Time'            : time text
+    - prefix+'LocalTimezone'   : timezone text
+    - prefix+'HourHand'        : direction of hour hand
+    - prefix+'MinuteHand'      : direction of minute hand
+    - prefix+'SecondHand'      : direction of second hand
+    - prefix+'FaceBackground'  : background color
+    - prefix+'Notice'          : connection error message
+    IDs of the countdown HTML elements:
+    - prefix+'CountdownDays'   : countdown days
+    - prefix+'CountdownHours'  : countdown hours
+    - prefix+'CountdownMinutes': countdown minutes
+    - prefix+'CountdownSeconds': countdown seconds
+    - prefix+'CountdownDaysLabel': days label
+    - prefix+'CountdownHoursLabel': hours label
+    - prefix+'CountdownMinutesLabel': minutes label
+    - prefix+'CountdownSecondsLabel': seconds label
 */
 
 /*
@@ -216,6 +227,19 @@ function WebSocketClock(server_url,config_dict)
             if ('prefix' in config_dict[ii]) this.clock.relative.prefix=config_dict[ii].prefix;
             this.clock.relative.name = ('name' in config_dict[ii])?config_dict[ii].name:'Temporalzeit';
             if ('url' in config_dict[ii]) this.clock.relative.url=config_dict[ii].url;
+          }
+        else if (ii.substring(0,9) == 'countdown')
+          {
+            if ('end' in config_dict[ii])
+              {
+                this.clock[ii] = {
+                    show:0,
+                    prefix:('prefix' in config_dict[ii])?config_dict[ii].prefix:'ptb',
+                    name:'countdown',
+                    dst_name:'',
+                    end:config_dict[ii].end*1000};
+                this.solar.push(this.clock[ii]);
+              }
           }
         else
           {
@@ -729,6 +753,11 @@ function SolarTick(server,confs,milliseconds)
                       }
                   }
                 clock.setClock(ts+cet_offset,cet_name,'UTC',cet_offset+offset,clocks[ii].prefix,clocks[ii].show);
+                
+                if ('end' in clocks[ii])
+                  {
+                    clock.set_countdown(clocks[ii].prefix,clocks[ii].end-ts);
+                  }
               }
             // TODO: condition
             if (offset==0)
@@ -1124,7 +1153,7 @@ WebSocketClock.prototype.set_deviation = function set_deviation()
               }
           }
   }
-    
+
 // Angle as degree, minute, second
 WebSocketClock.prototype.set_degree = function set_degree(id,angle,sign_symbol)
   {
@@ -1159,4 +1188,42 @@ WebSocketClock.prototype.set_julian_date = function set_julian_date(id,value)
         el.innerHTML = value.toFixed(5).toString().replace('.',',');
       }
   }
-      
+
+// Countdown
+WebSocketClock.prototype.set_countdown = function set_countdown(id,value)
+  {
+    if (value>=0)
+      {
+        value = Math.round(value/1000,0)
+        hours = value%86400;
+        days =  (value-hours)/86400;
+        minutes = hours%3600;
+        hours = (hours-minutes)/3600;
+        seconds = minutes%60;
+        minutes = (minutes-seconds)/60;
+      }
+    else
+      {
+        days = hours = minutes = seconds = 0;
+      }
+    parts = [['Days',days],['Hours',hours],['Minutes',minutes],['Seconds',seconds]]
+    for (x of parts)
+      {
+        let el = document.getElementById(id+'Countdown'+x[0]);
+        if (el)
+          {
+            el.innerHTML = x[1].toFixed(0).toString();
+          }
+        el = document.getElementById(id+'Countdown'+x[0]+'Label');
+        if (el)
+          {
+            let attr = el.getAttribute('clocklabel'+(x[1]!=1?'n':'1'));
+            if (x[1]==2)
+              {
+                at = el.getAttribute('clocklabel2');
+                if (at!=null) attr = at;
+              }
+            if (attr!=null) el.innerHTML = attr
+          }
+      }
+  }

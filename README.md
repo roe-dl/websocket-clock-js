@@ -204,6 +204,14 @@ ID | description
 `DJDUTC` | Dublin Julian Day (UTC)
 `UnixEpoch` | UNIX epoch time (based on UTC)
 `LabViewTime` | National Instrument's LabView time (based on UTC)
+`ptbCountdownDays` | countdown days
+`ptbCountdownHours` | countdown hours
+`ptbCountdownMinutes` | countdown minutes
+`ptbCountdownSeconds` | countdown seconds
+`ptbCountdownDaysLabel` | countdown days label
+`ptbCountdownHoursLabel` | countdown hours label
+`ptbCountdownMinutesLabel` | countdown minutes label
+`ptbCountdownSecondsLabel` | countdown seconds label
 
 ## Weekday
 
@@ -247,6 +255,29 @@ hand in the same clock for specially designed clock faces.
 The option `show` is 22 in that case. An example would be
 an additional sun symbol turning around during the day while
 the normal hour hand shows the time.
+
+## Countdown clock
+
+The countdown clock counts down days, hours, minutes, and seconds
+to a definite end timestamp.
+
+```Javascript
+end_ts = ...
+conf = {countdown:{end:end_ts}};
+```
+
+HTML example:
+```HTML
+<span id="ptbCountdownDays"></span>
+<span id="ptbCountdownDaysLabel" clocklabel1="Tag" clocklabeln="Tage">Tage</span>,
+<span id="ptbCountdownHours"></span>
+<span id="ptbCountdownHoursLabel" clocklabel1="Stunde" clocklabeln="Stunden">Stunden</span>,
+<span id="ptbCountdownMinutes"></span>
+<span id="ptbCountdownMinutesLabel" clocklabel1="Minute" clocklabeln="Minuten">Minuten</span>
+und
+<span id="ptbCountdownSeconds"></span>
+<span id="ptbCountdownSecondsLabel" clocklabel1="Sekunde" clocklabeln="Sekunden">Sekunden</span>
+```
 
 ## Links
 
