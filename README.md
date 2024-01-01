@@ -263,7 +263,7 @@ The countdown clock counts down days, hours, minutes, and seconds
 to a definite end timestamp.
 
 ```Javascript
-end_ts = ...
+end_ts = new Date(...)
 conf = {countdown:{end:end_ts}};
 ```
 
@@ -302,6 +302,14 @@ Labels:
 * `clocklabeln`: label if the value is from 5 on or 0
 
 If `clocklabel2` is missing, `clocklabeln` is used for 2, 3, and 4, too.
+
+Additionally you can define a callback function, that is called when
+the end time is reached. In this case the configuration looks like that:
+
+```Javascript
+end_ts = new Date(...)
+conf = {countdown:{end:end_ts,onend:function(config) {...}}};
+```
 
 ## Links
 

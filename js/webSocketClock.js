@@ -159,7 +159,7 @@ function WebSocketClock(server_url,config_dict)
           this.lmtoffsetutc=pos.coords.longitude*240000;
           this.set_degree('clockLongitude',this.lmtoffsetutc/240000,['O','W']);
           this.clock.relative.lon = pos.coords.longitude;
-          this.clock.relatvie.lat = pos.coords.latitude;});
+          this.clock.relative.lat = pos.coords.latitude;});
       }
     for (ii in config_dict)
       {
@@ -232,12 +232,15 @@ function WebSocketClock(server_url,config_dict)
           {
             if ('end' in config_dict[ii])
               {
+                let x = config_dict[ii].end;
+                if (!(x instanceof Date)) x *= 1000;
                 this.clock[ii] = {
-                    show:0,
+                    show:1,
                     prefix:('prefix' in config_dict[ii])?config_dict[ii].prefix:'ptb',
                     name:'countdown',
                     dst_name:'',
-                    end:config_dict[ii].end*1000};
+                    end:x,
+                    onend:('onend' in config_dict[ii])?config_dict[ii].onend:undefined};
                 this.solar.push(this.clock[ii]);
               }
           }
@@ -324,7 +327,7 @@ function WebSocketClock(server_url,config_dict)
       
     let clock = this;
     
-    // send rquest to the server
+    // send request to the server
     // Note: The request includes the actual local time of the client's
     //       clock to measure the roundtrip time
     function sendPTB(text,reset_array)
@@ -335,7 +338,7 @@ function WebSocketClock(server_url,config_dict)
         time_ws.send(JSON.stringify({c:performance.now()}));
       }
 
-    // websocket connection the the PTB server
+    // websocket connection to the PTB server
     function connect_server()
       {
         time_ws = new WebSocket('wss://'+server_url,'time');
@@ -384,7 +387,7 @@ function WebSocketClock(server_url,config_dict)
         // callback when receiving messages from the server
         time_ws.onmessage = function(event)
           {
-            console.log("onmessage",results_array.length,event);
+            //console.log("onmessage",results_array.length,event);
             
             // convert received message to JSON object
             let data = JSON.parse(event.data);
@@ -424,8 +427,6 @@ function WebSocketClock(server_url,config_dict)
             clock.leap_delta = 0;
             accuracy = Math.round(results_array[0][1]/2+results_array[0][2])
             // calculate deviation
-            //var local_system_time = new Date();
-            //clock.set_deviation(local_system_time.getTime()-performance.now()+clock.time_delta);
             clock.set_deviation();
             
             if (results_array.length<clock.avg_length)
@@ -756,7 +757,16 @@ function SolarTick(server,confs,milliseconds)
                 
                 if ('end' in clocks[ii])
                   {
-                    clock.set_countdown(clocks[ii].prefix,clocks[ii].end-ts);
+                    // countdown clock
+                    let x = clocks[ii].end.valueOf();
+                    clock.set_countdown(clocks[ii].prefix,x-ts);
+                    if (clocks[ii].onend instanceof Function)
+                      {
+                        if (x<=ts&&x>last_ts)
+                          {
+                            clocks[ii].onend(clocks[ii]);
+                          }
+                      }
                   }
               }
             // TODO: condition
@@ -903,6 +913,7 @@ WebSocketClock.prototype.setClock = function setClock(ts,zone,base_zone,offset,p
                 y = x%61;
                 month += (x-y)/30.5;
                 if (y>=31) month++,y-=31;
+                if (month>=13) year++,month-=12;
                 day = y+1;
                 if (this.iso_date)
                   date_text = year.toString() + '-' +
