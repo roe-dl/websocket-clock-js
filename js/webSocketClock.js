@@ -112,6 +112,20 @@ function WebSocketClock(server_url,config_dict)
     this.lmtoffsetutc = 3129600;
     this.sun = Array();
     this.weekdays = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Sonnabend'];
+    // Note: Czech language is sometimes abbreviated 'cz' and sometimes 'cs'.
+    this.timeofday = {
+      'de':['Tag','Nacht','Stunde'],
+      'en':['day','night','hour'],
+      'cs':["den","noc",'hodina'],
+      'cz':["den","noc",'hodina'],
+      'sk':["deň","noc",'hodina'],
+      'pl':["dzień","noc",'godzina'],
+      'fr':["jour","nuit",'heure'],
+      'it':["giorno","notte",'ora'],
+      'el':['Ημέρα','Νύχτα','ώρα'],
+      'hsb':['Dźeń','nóc','hodźina'],
+      'dsb':['Źeń','noc','góźina']
+    };
     
     // web socket
     var time_ws;
@@ -616,7 +630,31 @@ function RelativeTick(server,confs,url)
         let time_text = (hour<10?'0':'') + hour.toString() + ':' +
                         (minute<10?'0':'') + minute.toString() + ':' +
                         (second<10?'0':'') + second.toString();
-        let day_night = (idx%2)?"Nacht":"Tag";
+        let hour_th = (hour+1).toString()
+        let lang = navigator.language.toLowerCase().split('-',2)[0];
+        let strs = (clock.timeofday[lang]??['Tag','Nacht','Stunde']);
+        let day_night = strs[(idx%2)];
+        if (lang=='en')
+          {
+            switch (hour)
+              {
+                case 0:
+                  hour_th += 'st';
+                  break;
+                case 1:
+                  hour_th += 'nd';
+                  break;
+                case 2:
+                  hour_th += 'rd';
+                  break;
+                default:
+                  hour_th += 'th';
+              }
+          }
+        else
+          {
+            hour_th += '.';
+          }
         //console.log(x,hour,minute,second);
 
         if (initialize)
@@ -630,6 +668,8 @@ function RelativeTick(server,confs,url)
             // digital time
             clock.set_value(clocks[0].prefix+'Time',time_text);
             clock.set_value(clocks[0].prefix+'LocalTimezone',day_night);
+            clock.set_value(clocks[0].prefix+'Hour',hour_th);
+            clock.set_value(clocks[0].prefix+'HourName',strs[2]);
           }
         if (clocks[0].show&2)
           {

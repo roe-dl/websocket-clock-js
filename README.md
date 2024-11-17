@@ -175,7 +175,7 @@ middle ages. So the Prague city hall clock shows this time.
 
 ## IDs
 
-If you set up a prefix other than `ptb`, replace "ptb" by the prefix
+If you set up a prefix other than `ptb`, replace "ptb" with the prefix
 you set up in configuration.
 
 ID | description
@@ -194,6 +194,8 @@ ID | description
 `ptbWeekday` | weekday text
 `ptbTime` | digital time text
 `ptbLocalTimezone` | time zone in effect
+`ptbHour` | ordinal number of the hour in effect for relative time
+`ptbHourName` | the word hour in the favorite language of the web browser for relative time
 `ptbHour24Hand` | direction of a hand with 1 turn in 24 hours
 `ptbHourHand` | direction of the hour hand
 `ptbMinuteHand` | direction of the minute hand
