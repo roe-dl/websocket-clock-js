@@ -1,5 +1,5 @@
 // Using the Websocket subprotocol time to drive a web clock
-// Copyright (C) 2021, 2022, 2023 Johanna Roedenbeck
+// Copyright (C) 2021, 2022, 2023, 2026 Johanna Roedenbeck
 
 /*
     This script is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@
     - sidereal time (local and Greenwich)
     - relative time (additional data needed)
     - countdown
+    - lunar time (time on Earth according to the Moon)
     
     Usage:
     
@@ -41,7 +42,8 @@
           GMST:{show:0,prefix:'ptb'},
           LMST:{show:0,prefix:'ptb'},
           rel:{show:0,prefix:'ptb',url:'...'},
-          countdown:{end:12345678}
+          countdown:{end:12345678},
+          moon:{show:0,prefix:'ptb'}
         }
         clock = new WebSocketClock(server_url,conf); }
     </script>
@@ -124,7 +126,13 @@ function WebSocketClock(server_url,config_dict)
       'it':["giorno","notte",'ora'],
       'el':['Ημέρα','Νύχτα','ώρα'],
       'hsb':['Dźeń','nóc','hodźina'],
-      'dsb':['Źeń','noc','góźina']
+      'dsb':['Źeń','noc','góźina'],
+      'sv':['dag','natt','timme'],
+      'es':['día','noche','hora'],
+      'pt':['dia','noite','hora'],
+      'no':['dag','natt','time'],
+      'fi':['päivä','yö','tunti'],
+      'da':['dag','nat','time'],
     };
     
     // web socket
@@ -153,8 +161,13 @@ function WebSocketClock(server_url,config_dict)
     this.sidereallocal = Array();
     this.solar = Array();
     this.solarlocal = Array();
+    this.moon = Array();
 
     this.clock.relative.url = '/json/sunset_sunrise.json';
+
+    // lunar time
+    this.domain = [-127833.88938698,91311.05232082];
+    this.coef = [-1.76430029e+04,1.05861997e+05,-8.53832979e-05,3.15341669e-04];
 
     // read configuration    
     if ('longitude' in config_dict) 
@@ -241,6 +254,15 @@ function WebSocketClock(server_url,config_dict)
             if ('prefix' in config_dict[ii]) this.clock.relative.prefix=config_dict[ii].prefix;
             this.clock.relative.name = ('name' in config_dict[ii])?config_dict[ii].name:'Temporalzeit';
             if ('url' in config_dict[ii]) this.clock.relative.url=config_dict[ii].url;
+          }
+        else if (ii == 'moon' || ii == 'LMLT')
+          {
+            this.clock[ii] = {
+                show:('show' in config_dict[ii])?config_dict[ii].show:3,
+                prefix:('prefix' in config_dict[ii])?config_dict[ii].prefix:'ptb',
+                name:('name' in config_dict[ii])?config_dict[ii].name:'LMLT',
+                dst_name:''};
+            this.moon.push(this.clock[ii]);
           }
         else if (ii.substring(0,9) == 'countdown')
           {
@@ -473,6 +495,10 @@ function WebSocketClock(server_url,config_dict)
                     if (clock.clock.relative.show)
                       {
                         clock.relativetick = new RelativeTick(clock,[clock.clock.relative],clock.clock.relative.url);
+                      }
+                    if (clock.moon.length>0)
+                      {
+                        clock.moontick = new LunarTick(clock,clock.moon,clock.lmtoffsetutc);
                       }
                   }
                 // 
@@ -743,7 +769,53 @@ function SiderealTick(server,confs,milliseconds)
       
     sidereal_tick();
   }
-    
+
+// moon time tick (1 moon second = 0.99726966 solar seconds)
+function LunarTick(server,confs,milliseconds)
+  {
+    let clock = server;
+    let clocks = confs;
+    let offset = milliseconds;
+    let last_ts = clock.lunar_time(performance.now()-clock.time_delta+offset);
+
+    // clock tick for local mean time
+    function lunar_tick()
+      {
+        // get PTB UTC time
+        var ts = clock.lunar_time(performance.now()-clock.time_delta+offset);
+
+        // Sometimes the time is ...999. Don't set up a timeout <10ms.
+        t = 1035.0499910600872-(ts%1)*1000;
+        if (t<10) t+=1035.0499910600872;
+        //console.log("lunar_tick",ts,lunar_tick.last_ts,ts-lunar_tick.last_ts,t)
+        
+        // immediately set up next call
+        setTimeout(lunar_tick,t);
+        
+        if (ts-last_ts>3200 || !clock.ws_connected)
+          {
+            // reset clock
+            for (ii in clocks)
+              {
+                clock.setClock(0,clocks[ii].name,'GMLT',offset,clocks[ii].prefix,clocks[ii].show&~4);
+              }
+          }
+        else
+          {
+            // set clock
+            for (ii in clocks)
+              {
+                clock.setClock(ts*1000,clocks[ii].name,'GMLT',offset,clocks[ii].prefix,clocks[ii].show&~4);
+              }
+          }
+        
+        // remember last timestamp
+        last_ts = ts;
+      }
+      
+    lunar_tick();
+  }
+
 // solar time tick (1 UTC second)
 function SolarTick(server,confs,milliseconds)
   {
@@ -847,6 +919,18 @@ WebSocketClock.prototype.sidereal_time = function sidereal_time(utc)
     dp/=1000;
     let GMST = 24110.54841 + 8640184.812866*T + 0.093104*T*T + 0.0000062*T*T*T + dp*1.00273790935;
     return GMST;
+  }
+
+// calculate moon time from UTC
+// utc is in millseconds
+// result is in lunar seconds
+WebSocketClock.prototype.lunar_time = function lunar_time(utc)
+  {
+    // TODO: UTC --> UT1 (formula is for UT1, actual offset is missing)
+    ut1 = 25567.5 + utc / 86400.0 / 1000;
+    oldlen = this.domain[1]-this.domain[0]
+    xx = ut1*2.0/oldlen-(this.domain[1]+this.domain[0])/oldlen;
+    return (((this.coef[3]*xx+this.coef[2])*xx+this.coef[1])*xx+this.coef[0]-0.5)*86400.0;
   }
 
 // check if daylight savings time applies 

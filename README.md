@@ -33,6 +33,7 @@ The following clocks are available:
 * Dublin Julian Day (digital only)
 * Relative Time (additional data needed)
 * Countdown clock
+* Lunar time (not time on the Moon but time on Earth according to the mean hour angle of the Moon)
 
 Additionally:
 
@@ -74,7 +75,8 @@ by an HTML file that includes the following:
           LMT:{show:0,prefix:'ptb',name:'LMT'},
           GMST:{show:0,prefix:'ptb'},
           LMST:{show:0,prefix:'ptb'},
-          rel:{show:0,prefix:'ptb',url:'...'}
+          rel:{show:0,prefix:'ptb',url:'...'},
+          moon:{show:0,prefix:'ptb'}
         }
         new WebSocketClock(server_url,conf); }
     </script>
